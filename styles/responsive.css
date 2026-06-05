@@ -1,0 +1,366 @@
+/* ============================================
+   KFD App — Responsive (tablet + small desktop)
+============================================ */
+
+/* Small desktop / large tablet landscape — 1280px and below */
+@media (max-width: 1280px) {
+  .app { grid-template-columns: 220px 1fr; }
+  .search { min-width: 240px; }
+  .content { padding: 18px 22px 50px; }
+
+  /* KPI strip wraps to 3 columns instead of 5 */
+  .kpi-strip { grid-template-columns: repeat(3, 1fr); }
+  .kpi-strip__cell { border-bottom: 1px solid var(--border); }
+  .kpi-strip__cell:nth-child(3) { border-right: 0; }
+  .kpi-strip__cell:nth-child(n+4) { border-bottom: 0; }
+
+  /* Patient hero kpi rail — wrap if needed */
+  .patient-hero__kpi { flex-wrap: wrap; gap: 18px; }
+
+  /* Strength / hop rows compact */
+  .str-row { grid-template-columns: 200px 1fr 90px; gap: 12px; }
+  .hop-row { grid-template-columns: 170px 1fr 140px; gap: 12px; }
+  .jump-vert { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* Tablet landscape / portrait — 1024px and below */
+@media (max-width: 1024px) {
+  /* Auto-collapse sidebar to icon-only on tablet */
+  .app { grid-template-columns: 64px 1fr; }
+  .sidenav__label,
+  .sidenav__brand div:last-child,
+  .sidenav__pro > div:not(:first-child),
+  .sidenav__badge { display: none; }
+  .sidenav__item { justify-content: center; padding: 10px 8px; }
+  .sidenav__brand { padding: 18px 12px; justify-content: center; }
+  .sidenav__pro { justify-content: center; padding: 4px; }
+
+  /* Topbar compresses */
+  .topbar { padding: 14px 18px; gap: 10px; flex-wrap: wrap; }
+  .topbar__h1 { font-size: 19px; }
+  .search { min-width: 0; flex: 1; max-width: 360px; }
+  .roleswitch button { padding: 6px 10px; font-size: 11.5px; }
+
+  /* Content padding */
+  .content { padding: 16px 18px 50px; }
+  .density--comfy .content { padding: 18px 22px 60px; }
+
+  /* All grid-12 columns collapse: span-8/4 -> 7/5, span-9/3 -> 8/4, deep splits go to full width */
+  .grid-12 { gap: 14px !important; }
+
+  /* Common spans become full-width on tablet */
+  [style*="span 7"], [style*="span 8"], [style*="span 9"] { grid-column: span 12 !important; }
+  [style*="span 4"], [style*="span 5"] { grid-column: span 6 !important; }
+  [style*="span 3"] { grid-column: span 6 !important; }
+  [style*="span 6"] { grid-column: span 12 !important; }
+
+  /* KPI strip → 2 cols */
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .kpi-strip__cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .kpi-strip__cell:nth-child(2n) { border-right: 0; }
+  .kpi-strip__cell:nth-last-child(-n+2) { border-bottom: 0; }
+
+  /* Patient row — drop progress + adherence columns into a stacked group */
+  .patient-row {
+    grid-template-columns: 42px 1fr auto;
+    gap: 12px;
+  }
+  .patient-row > .patient-row__col:nth-child(3),
+  .patient-row > .patient-row__col:nth-child(4) { display: none; }
+
+  /* Patient hero buttons wrap */
+  .patient-hero__main { flex-wrap: wrap; }
+
+  /* Evaluation stepper — show only numbers on smaller screens */
+  .stepper__sub { display: none; }
+  .stepper__lbl { font-size: 11.5px; }
+
+  /* Mov row data: stack DER/IZQ on top, asym below */
+  .mov-row__data { grid-template-columns: 1fr 1fr; }
+  .mov-asym { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 8px 12px; }
+
+  /* Strength row stacks */
+  .str-row { grid-template-columns: 1fr; gap: 14px; }
+  .str-row__asym { flex-direction: row; justify-content: flex-end; gap: 10px; }
+
+  /* Hop rows stack */
+  .hop-row { grid-template-columns: 1fr; gap: 14px; }
+  .hop-row__lsi { justify-content: flex-start; }
+
+  /* Jump cards 2 cols → keep but allow stack */
+  .jump-vert { grid-template-columns: 1fr 1fr; }
+  .jump-card__body { grid-template-columns: 70px 1fr; }
+
+  /* Planning blocks */
+  .block-head { grid-template-columns: 40px 1fr; gap: 12px; }
+  .block-head__stats { display: none; }
+  .block-head > button { grid-column: span 2; justify-self: start; }
+
+  /* Plan grid (legacy) and KFD blocks adjustments */
+  .day-chip { flex: 0 0 180px; }
+
+  /* Portal hero stacks */
+  .portal-hero { grid-template-columns: 1fr; gap: 24px; padding: 28px 28px 24px; }
+  .portal-hero__title { font-size: 30px; }
+  .portal-hero__stats { width: 100%; justify-content: space-around; }
+
+  /* Chat layout */
+  .chat-side { width: 220px; }
+
+  /* Postural grid 2 cols */
+  .postural-grid { grid-template-columns: 1fr 1fr; }
+  .postural-card__photo { height: 220px; }
+
+  /* Tabs scrollable */
+  .tabs { overflow-x: auto; }
+  .tab { white-space: nowrap; }
+
+  /* Patient hero kpi — wrap gauges in a tighter grid */
+  .patient-hero__kpi { padding: 16px 22px 18px; gap: 14px; }
+  .kpi-divider { display: none; }
+
+  /* Lib grid — slightly larger min */
+  .lib-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+
+  /* Week check / session check */
+  .weekcheck { grid-template-columns: repeat(4, 1fr) !important; }
+}
+
+/* ============================================
+   Bottom nav (mobile) — hidden on desktop
+============================================ */
+.bottomnav { display: none; }
+
+@media (max-width: 640px) {
+  .bottomnav {
+    display: flex;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg-2);
+    border-top: 1px solid var(--border);
+    z-index: 90;
+    padding: 6px 4px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    backdrop-filter: blur(12px);
+  }
+  .bottomnav__item {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    padding: 8px 4px;
+    color: var(--muted);
+    position: relative;
+    border-radius: 10px;
+    min-height: 52px;
+  }
+  .bottomnav__item.is-active { color: var(--accent); }
+  .bottomnav__icon { display: inline-flex; }
+  .bottomnav__label { font-size: 10px; font-weight: 600; letter-spacing: 0.01em; }
+  .bottomnav__badge {
+    position: absolute; top: 6px; right: 28%;
+    width: 8px; height: 8px; border-radius: 50%; background: #FF7A7A;
+    box-shadow: 0 0 0 2px var(--bg-2);
+  }
+}
+
+/* ============================================
+   Mobile (≤640px)
+============================================ */
+@media (max-width: 640px) {
+  /* Sidebar hidden — bottom nav takes over */
+  .sidenav { display: none; }
+  .app { grid-template-columns: 1fr !important; }
+  .main { padding-bottom: 70px; }  /* room for bottom nav */
+
+  /* Topbar — very compact */
+  .topbar { padding: 12px 14px; gap: 8px; }
+  .topbar__title { min-width: 0; }
+  .topbar__h1 { font-size: 16px; }
+  .topbar__crumb { display: none; }
+  .topbar__actions { gap: 6px; }
+  .search { display: none; }
+  .iconbtn { width: 36px; height: 36px; }
+  .roleswitch { padding: 2px; }
+  .roleswitch button { padding: 5px 8px; font-size: 11px; }
+
+  /* Content */
+  .content { padding: 12px 12px 24px; }
+
+  /* All grid items full width */
+  .grid-12 { display: flex !important; flex-direction: column; gap: 12px !important; }
+  .grid-12 > * { grid-column: unset !important; }
+  .grid-3col, .grid-2col { display: flex !important; flex-direction: column; gap: 12px; }
+
+  /* Cards smaller padding */
+  .content [class*="Card"], .card-mobile { padding: 14px !important; }
+
+  /* Dashboard */
+  .kpi-strip { grid-template-columns: 1fr; }
+  .kpi-strip__cell { padding: 16px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .kpi-strip__cell:last-child { border-bottom: 0; }
+  .quick-grid { grid-template-columns: 1fr; }
+  .patient-row {
+    grid-template-columns: 36px 1fr auto !important;
+    gap: 10px; padding: 10px 8px;
+  }
+  .patient-row > .patient-row__col:nth-child(3),
+  .patient-row > .patient-row__col:nth-child(4),
+  .patient-row > .patient-row__col:nth-child(5) { display: none !important; }
+  .patient-row__col:last-of-type { display: none; }  /* fallback */
+
+  /* Agenda */
+  .agenda__row { grid-template-columns: 42px 14px 1fr; gap: 8px; }
+  .agenda__time { font-size: 11px; }
+
+  /* Alert */
+  .alert { grid-template-columns: 32px 1fr; gap: 10px; padding: 10px; }
+  .alert > button { grid-column: span 2; justify-self: start; }
+
+  /* Patient hero */
+  .patient-hero { padding: 18px 16px 0; }
+  .patient-hero__main { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .patient-hero__main h2 { font-size: 22px !important; }
+  .patient-hero__meta { gap: 12px !important; font-size: 11.5px; }
+  .patient-hero__main > div:last-child { width: 100%; flex-direction: row !important; }
+  .patient-hero__main > div:last-child > button { flex: 1; }
+  .patient-hero__kpi {
+    padding: 14px 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .patient-hero__kpi > * { min-width: 0; }
+  .kpi-divider { display: none; }
+  .tabs { padding: 0 8px; gap: 0; }
+  .tab { padding: 12px 10px; font-size: 12px; }
+
+  /* Patient detail grids stack */
+  .grid-2col { grid-template-columns: 1fr !important; gap: 18px; }
+
+  /* Timeline */
+  .timeline__row { grid-template-columns: 18px 1fr; }
+
+  /* Plan head */
+  .plan-head { padding: 14px; gap: 10px; flex-wrap: wrap; }
+  .plan-stats { display: none; }
+  .plan-head > button { flex: 1; }
+
+  /* Day rail — smaller chips, snap scroll */
+  .day-rail { padding: 0 0 4px; margin: 0 -12px; padding-left: 12px; padding-right: 12px; }
+  .day-chip { flex: 0 0 150px; padding: 10px 12px; }
+  .day-chip__focus { font-size: 11px; min-height: 28px; }
+
+  /* Block head */
+  .block-head {
+    grid-template-columns: 32px 1fr;
+    padding: 14px; gap: 10px;
+  }
+  .block-head__num { width: 30px; height: 30px; font-size: 14px; }
+  .block-head__name { font-size: 14.5px; }
+  .block-head__obj { font-size: 11px; }
+  .block-head__stats { display: none; }
+  .block-head > button { grid-column: span 2; justify-self: start; }
+
+  /* Block exercises — wrap tighter */
+  .block-ex {
+    grid-template-columns: 40px 1fr auto;
+    gap: 8px; padding: 8px 10px;
+  }
+  .block-ex__index { display: none; }
+  .block-ex__btn:not(:last-child) { display: none; }  /* keep only the delete on mobile, edit hidden */
+
+  /* Stepper — make it horizontally scrollable */
+  .stepper {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding: 12px 14px 16px;
+  }
+  .stepper__step { flex: 0 0 auto; min-width: auto; }
+  .stepper__lbl { font-size: 11px; }
+  .stepper__line { min-width: 14px; }
+
+  /* Evaluation header compact */
+  .eval-head { flex-wrap: wrap; padding: 14px; gap: 10px; }
+  .eval-head__time { display: none; }
+  .eval-head > button { flex: 1; min-width: 0; }
+
+  /* FMS */
+  .fms-row { grid-template-columns: 28px 1fr; gap: 8px; padding: 10px; }
+  .fms-row .fms-score { grid-column: span 2; justify-self: start; }
+  .fms-row > button:last-child { grid-column: span 2; justify-self: end; }
+  .fms-row__num { width: 28px; height: 28px; }
+  .fms-legend { flex-wrap: wrap; gap: 8px; font-size: 11px; }
+  .fms-bd { flex-direction: row; gap: 8px; padding: 10px; }
+  .fms-bd b { font-size: 18px; }
+
+  /* Mov / Strength / Hop — stacked layout already in tablet, keep tight */
+  .mov-row, .str-row, .hop-row { padding: 12px; }
+  .mov-row__data { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .str-bilat { grid-template-columns: 70px 1fr 70px; gap: 8px; }
+  .str-side .num-input { width: 56px; font-size: 12px; }
+  .hop-row__pair { grid-template-columns: 70px 1fr 70px; gap: 8px; }
+  .hop-side .num-input { width: 60px; }
+
+  /* Jump cards */
+  .jump-vert { grid-template-columns: 1fr; gap: 10px; }
+  .jump-card { padding: 12px; }
+  .jump-card__inputs { gap: 4px; }
+  .jump-card__inputs .num-input { width: 100%; }
+
+  /* Postural */
+  .postural-grid { grid-template-columns: 1fr; }
+  .postural-card__photo { height: 220px; }
+
+  /* Library card grid */
+  .lib-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .lib-card__body { padding: 8px 10px 10px; }
+  .lib-card__name { font-size: 12.5px; }
+
+  /* Modal */
+  .modal-back { padding: 0; align-items: flex-end; }
+  .modal { max-width: 100%; max-height: 90vh; border-radius: 16px 16px 0 0; }
+  .modal__head, .modal__filter, .modal__tags, .modal__body { padding-left: 16px; padding-right: 16px; }
+
+  /* Portal hero */
+  .portal-hero { padding: 22px 18px 18px; }
+  .portal-hero__title { font-size: 24px; }
+  .portal-hero__sub { font-size: 13px; }
+  .portal-hero__cta { flex-direction: column; }
+  .portal-hero__cta > button { width: 100%; }
+  .portal-hero__stats {
+    padding: 12px 14px; gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Pain scale buttons big enough */
+  .pain-row { gap: 4px; }
+  .pain-btn { height: 36px; font-size: 12px; }
+
+  /* Session checklist 2 cols */
+  .weekcheck { grid-template-columns: 1fr 1fr !important; gap: 8px; }
+
+  /* Chat */
+  .chat-side { display: none; }
+  .chat-main__head { padding: 12px; gap: 10px; }
+  .bubble { max-width: 85%; }
+  .chat-input { padding: 10px 12px; }
+  .chat-input input { font-size: 14px; }
+
+  /* Plan mini items */
+  .plan-mini__blocks { grid-template-columns: 1fr; }
+  .plan-mini__day { padding: 12px; }
+  .plan-mini__head { flex-direction: column; align-items: flex-start; gap: 4px; }
+
+  /* Portal blocks */
+  .portal-block { padding: 12px; }
+  .portal-block__item { padding: 8px 10px; }
+
+  /* Tweaks panel — move up so it doesn't overlap bottom nav */
+  .twk-panel { bottom: 76px !important; right: 12px !important; width: calc(100% - 24px) !important; max-width: 280px; }
+
+  /* Table — hide some columns */
+  .data-table th:nth-child(n+5), .data-table td:nth-child(n+5) { display: none; }
+
+  /* Side rail in evaluation (mapa articular, gauge) — keep but compact */
+  .bodymap { padding: 10px; }
+  .legend { font-size: 10.5px; gap: 8px; }
+}

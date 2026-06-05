@@ -1,0 +1,198 @@
+/* ============================================
+   KFD App — patient portal styles
+============================================ */
+
+.portal-hero {
+  position: relative;
+  padding: 36px 36px 30px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 30px;
+  align-items: center;
+  overflow: hidden;
+}
+.portal-hero__bg {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(800px 400px at 0% 0%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%),
+    radial-gradient(600px 300px at 100% 100%, color-mix(in oklab, var(--teal-1) 18%, transparent), transparent 60%);
+}
+.portal-hero__copy { position: relative; z-index: 1; }
+.portal-hero__hello { font-size: 14px; color: var(--accent); font-weight: 600; letter-spacing: 0.02em; }
+.portal-hero__title {
+  font-family: var(--display);
+  font-size: 36px; font-weight: 800; color: var(--text);
+  letter-spacing: -0.02em; line-height: 1.1; margin: 8px 0 10px;
+}
+.portal-hero__sub { font-size: 14.5px; color: var(--text-2); margin-bottom: 22px; max-width: 520px; }
+.portal-hero__cta { display: flex; gap: 10px; }
+.portal-hero__stats {
+  display: flex; gap: 22px; align-items: center;
+  padding: 14px 22px;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  position: relative; z-index: 1;
+  backdrop-filter: blur(8px);
+}
+
+.theme--light .portal-hero__stats { background: rgba(255,255,255,0.6); }
+
+/* Today list */
+.today-list { display: flex; flex-direction: column; gap: 8px; }
+.today-item {
+  display: grid; grid-template-columns: 36px 60px 1fr auto;
+  gap: 14px; align-items: center;
+  padding: 12px;
+  background: var(--chip);
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: border-color .15s ease;
+}
+.today-item:hover { border-color: var(--border-strong); }
+.today-item.is-done { opacity: 0.65; }
+.today-item.is-done .today-item__name { text-decoration: line-through; }
+.today-item__check {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-weight: 700; font-size: 13px;
+  border: 1px solid var(--border-strong);
+}
+.today-item.is-done .today-item__check { background: var(--green-2); color: #06140A; border-color: var(--green-2); }
+.today-item__thumb {
+  width: 60px; height: 44px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--green-1), var(--teal-1));
+  display: flex; align-items: center; justify-content: center; color: white;
+}
+.today-item__name { font-weight: 600; color: var(--text); font-size: 14px; }
+.today-item__meta { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+
+/* Mini stats */
+.mini-stat {
+  flex: 1; padding: 10px; background: var(--chip); border-radius: 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.mini-stat b { font-family: var(--display); font-weight: 800; font-size: 22px; line-height: 1; }
+.mini-stat span { font-size: 11px; color: var(--muted); }
+
+/* Pain scale */
+.pain-row { display: grid; grid-template-columns: repeat(11, 1fr); gap: 6px; }
+.pain-btn {
+  height: 38px; border-radius: 8px;
+  font-family: var(--display); font-weight: 700; font-size: 13px;
+  border: 1px solid var(--border);
+  transition: transform .12s ease;
+}
+.pain-btn.is-on { transform: scale(1.08); border-color: transparent; }
+
+/* Week checklist */
+.weekcheck { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.weekcheck__day {
+  background: var(--chip);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 14px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.weekcheck__day.is-today { border-color: var(--accent); background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 12%, transparent), var(--chip)); }
+.weekcheck__day.is-rest { opacity: 0.55; }
+.weekcheck__head { display: flex; align-items: baseline; gap: 6px; }
+.weekcheck__name { font-family: var(--display); font-weight: 800; font-size: 12px; color: var(--text); letter-spacing: 0.04em; }
+.weekcheck__date { font-size: 11px; color: var(--muted); }
+.weekcheck__ring { position: relative; }
+.weekcheck__count {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 700; font-size: 11px; color: var(--text);
+}
+.weekcheck__rest { font-size: 11.5px; color: var(--muted); padding: 18px 0; }
+
+/* Kine note (paciente) */
+.kine-note {
+  display: flex; gap: 14px; padding: 16px;
+  background: var(--chip); border-radius: 12px;
+  border-left: 3px solid var(--accent);
+}
+
+/* Badge row (achievements) */
+.badge-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; background: var(--chip); border-radius: 10px;
+}
+.badge-row__ico { font-size: 22px; }
+.badge-row b { color: var(--text); font-weight: 700; font-size: 13px; }
+.badge-row span { font-size: 11px; color: var(--muted); display: block; }
+
+/* ===================== PORTAL BLOCKS (paciente) ===================== */
+.portal-blocks { display: flex; flex-direction: column; gap: 14px; }
+.portal-block {
+  background: var(--chip);
+  border-radius: 12px;
+  padding: 14px;
+}
+.portal-block.is-done { opacity: 0.7; }
+.portal-block__head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.portal-block__num {
+  width: 30px; height: 30px; border-radius: 8px;
+  color: #06140A; font-family: var(--display); font-weight: 800; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.portal-block__name { font-family: var(--display); font-weight: 700; color: var(--text); font-size: 14.5px; }
+.portal-block__meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.portal-block__items { display: flex; flex-direction: column; gap: 6px; }
+.portal-block__item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 8px;
+}
+.portal-block__check {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center; color: #06140A;
+  flex-shrink: 0;
+}
+.portal-block__iname { font-weight: 600; color: var(--text); font-size: 13px; }
+.portal-block__imeta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.portal-block__playbtn {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--accent); color: #06140A;
+  display: flex; align-items: center; justify-content: center;
+}
+.portal-block.is-done .portal-block__playbtn { background: var(--chip); color: var(--muted); }
+
+/* ===================== PLAN MINI (in patient detail "Plan activo") ===================== */
+.plan-mini { display: flex; flex-direction: column; gap: 12px; }
+.plan-mini__day {
+  background: var(--chip); border-radius: 12px; padding: 14px;
+  border-left: 3px solid var(--accent);
+}
+.plan-mini__day--completado { opacity: 0.7; border-left-color: var(--green-2); }
+.plan-mini__day--en-curso { border-left-color: var(--lime-2); background: linear-gradient(160deg, color-mix(in oklab, var(--lime-2) 8%, var(--chip)), var(--chip)); }
+.plan-mini__day--pendiente { border-left-color: var(--muted); }
+.plan-mini__head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 10px; margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.plan-mini__num {
+  font-family: var(--display); font-weight: 800; font-size: 14px; color: var(--text); letter-spacing: 0.01em;
+  margin-right: 12px;
+}
+.plan-mini__focus { font-size: 12.5px; color: var(--text-2); }
+.plan-mini__dur { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.plan-mini__blocks {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.plan-mini__block { display: flex; flex-direction: column; gap: 4px; }
+.plan-mini__blbl {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  padding-bottom: 4px;
+}
+.plan-mini__bdot { width: 6px; height: 6px; border-radius: 50%; }
+.plan-mini__items { display: flex; flex-direction: column; gap: 3px; }
+.plan-mini__item { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11.5px; padding: 3px 0; }
+.plan-mini__iname { color: var(--text); font-weight: 500; flex: 1; }
+.plan-mini__imeta { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
