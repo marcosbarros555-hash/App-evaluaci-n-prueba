@@ -1,5 +1,34 @@
 // app.jsx — main App component
-const { useState: useStateApp } = React;
+const { useState: useStateApp, useEffect: useEffectApp } = React;
+
+const AVATAR_COLORS = ['#4ADE7A','#2DD4BF','#B8DC2E','#16A98D','#A3E635','#6BB72B'];
+
+function mapEntrenado(e, idx) {
+  const nombre   = (e.nombre   || '').trim();
+  const apellido = (e.apellido || '').trim();
+  const name     = [nombre, apellido].filter(Boolean).join(' ');
+  const initials = `${nombre[0]||''}${apellido[0]||''}`.toUpperCase() || '?';
+  const color    = e.avatar_color || AVATAR_COLORS[idx % AVATAR_COLORS.length];
+  const age      = e.fecha_nac
+    ? Math.floor((Date.now() - new Date(e.fecha_nac)) / 31557600000)
+    : null;
+  return {
+    id: e.id, name, nombre, apellido, age,
+    sex: e.sex, sport: e.deporte || '', profile: e.perfil || 'pob_general',
+    avatar: initials, color,
+    weight: e.peso, height: e.altura,
+    email: e.email, telefono: e.telefono, dni: e.dni,
+    modalidad: e.modalidad, obra_social: e.obra_social,
+    como_nos_encontro: e.como_nos_encontro,
+    actividad_fisica: e.actividad_fisica, que_actividad: e.que_actividad,
+    veces_semana: e.veces_semana,
+    // campos clínicos — aún no en Supabase
+    status: 'Activo', diagnosis: '', nextSession: '—',
+    adherence: 0, sessionsTotal: 0, sessionsDone: 0,
+    lastEval: 'Sin evaluar', painNow: 0, painStart: 0,
+    flags: [], metrics: { fuerza: 0, movilidad: 0, postural: 0, funcional: 0 }, progress: [],
+  };
+}
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "dark",
@@ -18,7 +47,7 @@ const ACCENT_OPTIONS = [
 function pageMeta(route, role, p) {
   const titles = {
     dashboard: ['Dashboard', 'Tu cohorte de hoy'],
-    patients: ['Pacientes', p ? p.name : 'Ficha del paciente'],
+    patients: ['Entrenados de KFD', p ? (p.apellido ? `${p.apellido}, ${p.nombre}` : p.name) : 'Ficha del entrenado'],
     evaluation: ['Evaluación', 'Re-evaluación funcional'],
     planning: ['Planificación', `Editor de plan${p ? ' · ' + p.name : ''}`],
     progress: ['Progreso', `Evolución${p ? ' · ' + p.name : ''}`],
@@ -38,6 +67,19 @@ function App() {
   const [route, setRoute] = useStateApp('dashboard');
   const [activePatient, setActivePatient] = useStateApp('p1');
   const [search, setSearch] = useStateApp('');
+  const [patients, setPatients] = useStateApp(PATIENTS);
+
+  useEffectApp(() => {
+    if (typeof db === 'undefined') return;
+    db.from('entrenados').select('*').order('apellido', { ascending: true }).limit(50)
+      .then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
+          const mapped = data.map(mapEntrenado);
+          setPatients(mapped);
+          setActivePatient(mapped[0].id);
+        }
+      });
+  }, []);
 
   // when role changes, jump to a sensible default route
   React.useEffect(() => {
@@ -45,7 +87,7 @@ function App() {
     if (role === 'pro' && route.startsWith('portal-')) setRoute('dashboard');
   }, [role]);
 
-  const p = PATIENTS.find(x => x.id === activePatient);
+  const p = patients.find(x => x.id === activePatient);
   const [pageTitle, pageSub] = pageMeta(route, role, p);
 
   const themeClass = `theme--${t.theme || 'dark'} density--${t.density || 'regular'} sidebar--${t.sidebarStyle || 'icon-label'}`;
@@ -57,8 +99,8 @@ function App() {
         <TopBar role={role} setRole={setRole} route={route} pageTitle={pageTitle} pageSub={pageSub}
           search={search} onSearch={setSearch} />
         <div className="content">
-          {role === 'pro' && route === 'dashboard' && <ScreenDashboard setRoute={setRoute} setActivePatient={setActivePatient} />}
-          {role === 'pro' && route === 'patients' && <ScreenPatient activePatient={activePatient} setActivePatient={setActivePatient} setRoute={setRoute} />}
+          {role === 'pro' && route === 'dashboard' && <ScreenDashboard patients={patients} setRoute={setRoute} setActivePatient={setActivePatient} />}
+          {role === 'pro' && route === 'patients' && <ScreenPatient patients={patients} activePatient={activePatient} setActivePatient={setActivePatient} setRoute={setRoute} />}
           {role === 'pro' && route === 'evaluation' && <ScreenEvaluation activePatient={activePatient} setRoute={setRoute} />}
           {role === 'pro' && route === 'planning' && <ScreenPlanning activePatient={activePatient} setRoute={setRoute} />}
           {role === 'pro' && route === 'progress' && <ScreenProgress activePatient={activePatient} />}
