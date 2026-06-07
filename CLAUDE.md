@@ -192,23 +192,37 @@ Escala 0–3. `0 = dolor → detener protocolo`.
 
 ### Construido ✓
 - Shell completo: SideNav, TopBar, sistema de temas, responsive (sidebar colapsado tablet, bottomnav mobile)
-- Dashboard, Pacientes, Planificación, Progreso, Biblioteca, Mensajes, Portal del paciente
+- Dashboard, Entrenados (ex-Pacientes), Planificación, Progreso, Biblioteca, Mensajes, Portal del paciente
 - Sistema de diseño completo (tokens, componentes, 3 temas, 3 densidades)
 - Stepper visual de evaluación con header de sesión
+
+#### Planificación — funcionalidades completas (sesión 2026-06-06)
+- **Terminología**: "Pacientes" renombrado a "Entrenados" en nav y títulos (`shell.jsx`, `app.jsx`)
+- **Estructura de semanas**: selector de semanas (tabs), nueva semana, copiar semana completa; `data.jsx` expone `KFD_PLAN_SEMANAS` (retrocompatible con `KFD_PLAN` que sigue usando `portal.jsx`)
+- **Días dinámicos**: chips de día, nuevo día, copiar día dentro de la semana
+- **Bloques dinámicos**: array editable por día (reemplaza los 5 fijos); crear, renombrar inline (click), cambiar color (6 opciones), eliminar, copiar/pegar entre días y semanas
+- **Agregar ejercicios funcional**: ExercisePicker agrega realmente al estado del bloque y se ve en pantalla de inmediato
+- **Eliminar ejercicios funcional**: bug fix — botón trash tenía `onClick` faltante
+- **Videos de YouTube**: `NuevoEjercicioModal` tiene campo URL con extracción automática de videoId; thumbnails en bloques del plan y en la biblioteca; `VideoModal` al hacer click
+- **Dosificación semanal**: toggle RPE/RIR, valor por día, barras de color, notas por día
+- **Vista previa del entrenado**: modal read-only que muestra el día como lo vería el paciente (con thumbnails)
 
 ### Pendiente — gaps reales
 | Gap | Descripción |
 |-----|-------------|
-| **Evaluación** | `evaluation.jsx` tiene el stepper pero los formularios de los 5 módulos son placeholder. Es el gap más importante. |
+| **Evaluación** | `evaluation.jsx` tiene el stepper pero los formularios de los 5 módulos (A–E) son placeholder. Es el gap más importante. |
 | **Backend** | Todo en `data.jsx` hardcodeado. Decisión tomada: **Supabase**. |
 | **Auth** | El switch pro/paciente es un botón. Falta login real con Supabase Auth + RLS. |
+| **Portal conectado** | `portal.jsx` sigue usando `KFD_PLAN` (formato viejo). Falta conectarlo al plan real del editor. |
+| **Series/reps editables** | Los campos `sets` y `dur` en los ejercicios del bloque son texto estático — falta edición inline. |
+| **Persistencia** | El plan se resetea al recargar. Falta Supabase o localStorage. |
 
 ### Orden de construcción acordado
 1. Formularios de evaluación (5 módulos con cálculos y semáforo)
 2. Supabase — tablas + RLS básico
 3. Auth real — reemplazar roleswitch
-4. Planificación conectada a Supabase
-5. Portal del paciente completo
+4. Planificación conectada a Supabase (persistencia real)
+5. Portal del paciente conectado al plan real
 6. Deploy (Netlify o Vercel)
 
 ---

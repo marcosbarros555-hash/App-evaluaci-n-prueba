@@ -202,4 +202,150 @@ function Stat({ label, value, unit, delta, deltaTone = 'green', icon }) {
   );
 }
 
-Object.assign(window, { KfdLogo, KfdWordmark, Avatar, Card, SectionHead, Pill, Btn, Bar, Sparkline, Gauge, Stat });
+// ── YouTube: extrae el ID de cualquier formato de URL ──
+function extractYoutubeId(input) {
+  if (!input) return null;
+  const s = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+  const m1 = s.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (m1) return m1[1];
+  const m2 = s.match(/(?:[?&]v=|\/embed\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+  if (m2) return m2[1];
+  return null;
+}
+
+// ── Reproductor de video en modal ──
+function VideoModal({ videoId, title, onClose }) {
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className="modal modal--video" onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 16 }}>
+            {title || 'Video del ejercicio'}
+          </div>
+          <button className="modal__x" onClick={onClose}>×</button>
+        </div>
+        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal: agregar ejercicio nuevo a la biblioteca ──
+const ALL_EX_TAGS = ['fuerza','movilidad','funcional','core','MMII','MMSS','postural','activación','propiocepción','pliometría','unilateral'];
+
+function NuevoEjercicioModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ name: '', muscle: '', equipment: '', diff: 'Básico', videoUrl: '' });
+  const [tags, setTags] = useState([]);
+
+  const ytId = extractYoutubeId(form.videoUrl);
+  const urlHasInput = form.videoUrl.trim().length > 0;
+  const toggleTag = t => setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+
+  const handleSave = () => {
+    if (!form.name.trim()) return;
+    onSave({
+      id: `e_${Date.now()}`,
+      name: form.name.trim(),
+      muscle: form.muscle.trim() || '—',
+      equipment: form.equipment.trim() || '—',
+      diff: form.diff,
+      tags,
+      videoId: ytId || null,
+    });
+    onClose();
+  };
+
+  const lbl = { display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', letterSpacing: '0.06em', marginBottom: 6 };
+  const inp = { width: '100%', boxSizing: 'border-box', background: 'var(--chip)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 8, padding: '8px 12px', fontSize: 13, fontFamily: 'inherit' };
+
+  return (
+    <div className="modal-back" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
+        <div className="modal__head">
+          <div>
+            <div style={{ fontFamily: 'var(--display)', fontWeight: 700, fontSize: 18 }}>Nuevo ejercicio</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 3 }}>
+              Disponible en todos los planes una vez guardado
+            </div>
+          </div>
+          <button className="modal__x" onClick={onClose}>×</button>
+        </div>
+        <div className="modal__body" style={{ padding: '18px 22px', gap: 16 }}>
+          <div>
+            <label style={lbl}>Nombre *</label>
+            <input style={inp} value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Ej: Sentadilla búlgara" autoFocus />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={lbl}>Músculo principal</label>
+              <input style={inp} value={form.muscle}
+                onChange={e => setForm(f => ({ ...f, muscle: e.target.value }))}
+                placeholder="Ej: Cuádriceps · Glúteo" />
+            </div>
+            <div>
+              <label style={lbl}>Equipamiento</label>
+              <input style={inp} value={form.equipment}
+                onChange={e => setForm(f => ({ ...f, equipment: e.target.value }))}
+                placeholder="Ej: Mancuernas" />
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Dificultad</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['Básico','Intermedio','Avanzado'].map(d => (
+                <button key={d} className={`tag-chip ${form.diff === d ? 'is-on' : ''}`}
+                  onClick={() => setForm(f => ({ ...f, diff: d }))}>{d}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Categorías</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {ALL_EX_TAGS.map(t => (
+                <button key={t} className={`tag-chip ${tags.includes(t) ? 'is-on' : ''}`}
+                  onClick={() => toggleTag(t)}>{t}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label style={lbl}>Video de YouTube</label>
+            <input style={inp} value={form.videoUrl}
+              onChange={e => setForm(f => ({ ...f, videoUrl: e.target.value }))}
+              placeholder="Pegá el link completo o las siglas del video (ID de 11 caracteres)" />
+            {urlHasInput && !ytId && (
+              <div style={{ fontSize: 12, color: '#FF7A7A', marginTop: 6 }}>
+                Link no reconocido — probá con el enlace completo de YouTube
+              </div>
+            )}
+            {ytId && (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'rgba(74,222,122,0.08)', borderRadius: 8, border: '1px solid rgba(74,222,122,0.2)' }}>
+                <img src={`https://img.youtube.com/vi/${ytId}/mqdefault.jpg`}
+                  style={{ width: 112, height: 63, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                <div>
+                  <div style={{ color: 'var(--green-2)', fontWeight: 700, fontSize: 13 }}>✓ Video detectado</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--mono)', marginTop: 4 }}>ID: {ytId}</div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '14px 22px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
+          <Btn variant="primary" onClick={handleSave} leadIcon={I.check}>Guardar ejercicio</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { KfdLogo, KfdWordmark, Avatar, Card, SectionHead, Pill, Btn, Bar, Sparkline, Gauge, Stat, extractYoutubeId, VideoModal, NuevoEjercicioModal });

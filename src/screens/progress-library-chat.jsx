@@ -132,11 +132,13 @@ function BarChart({ bars }) {
 }
 
 // ─────────────── LIBRARY SCREEN ───────────────
-function ScreenLibrary() {
+function ScreenLibrary({ exerciseLibrary, setExerciseLibrary }) {
   const [q, setQ] = useStateMisc('');
   const [tag, setTag] = useStateMisc('todos');
+  const [showNuevo, setShowNuevo] = useStateMisc(false);
+  const [videoEx, setVideoEx] = useStateMisc(null);
   const tags = ['todos','fuerza','movilidad','funcional','core','MMII','MMSS','postural','activación','propiocepción'];
-  const list = EXERCISE_LIBRARY.filter(e => {
+  const list = exerciseLibrary.filter(e => {
     if (q && !e.name.toLowerCase().includes(q.toLowerCase())) return false;
     if (tag !== 'todos' && !e.tags.includes(tag)) return false;
     return true;
@@ -144,8 +146,8 @@ function ScreenLibrary() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <Card>
-        <SectionHead title="Biblioteca de ejercicios" sub={`${EXERCISE_LIBRARY.length} ejercicios · con video, indicaciones y progresiones`}
-          action={<Btn variant="primary" size="md" leadIcon={I.plus}>Nuevo ejercicio</Btn>} />
+        <SectionHead title="Biblioteca de ejercicios" sub={`${exerciseLibrary.length} ejercicios · hacé clic en una tarjeta para reproducir el video`}
+          action={<Btn variant="primary" size="md" leadIcon={I.plus} onClick={() => setShowNuevo(true)}>Nuevo ejercicio</Btn>} />
         <div className="lib-tags" style={{ marginBottom: 14 }}>
           {tags.map(t => (
             <button key={t} className={`tag-chip ${tag === t ? 'is-on' : ''}`} onClick={() => setTag(t)}>{t}</button>
@@ -154,12 +156,20 @@ function ScreenLibrary() {
         <div className="lib-grid">
           {list.map(e => (
             <div key={e.id} className="lib-card">
-              <div className="lib-card__thumb">
-                <div className="lib-card__playicon">{I.play}</div>
+              <div className="lib-card__thumb"
+                onClick={() => e.videoId && setVideoEx(e)}
+                style={{ cursor: e.videoId ? 'pointer' : 'default' }}>
+                {e.videoId && (
+                  <img
+                    src={`https://img.youtube.com/vi/${e.videoId}/mqdefault.jpg`}
+                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                )}
                 <div className="lib-card__overlay" />
-                <div className="lib-card__bars">
-                  <span /><span /><span /><span /><span />
-                </div>
+                {e.videoId
+                  ? <div className="lib-card__playicon">{I.play}</div>
+                  : <div className="lib-card__bars"><span /><span /><span /><span /><span /></div>
+                }
               </div>
               <div className="lib-card__body">
                 <div className="lib-card__name">{e.name}</div>
@@ -173,6 +183,14 @@ function ScreenLibrary() {
           ))}
         </div>
       </Card>
+
+      {showNuevo && (
+        <NuevoEjercicioModal
+          onClose={() => setShowNuevo(false)}
+          onSave={ex => setExerciseLibrary(prev => [...prev, ex])}
+        />
+      )}
+      {videoEx && <VideoModal videoId={videoEx.videoId} title={videoEx.name} onClose={() => setVideoEx(null)} />}
     </div>
   );
 }

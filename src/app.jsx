@@ -18,7 +18,7 @@ const ACCENT_OPTIONS = [
 function pageMeta(route, role, p) {
   const titles = {
     dashboard: ['Dashboard', 'Tu cohorte de hoy'],
-    patients: ['Pacientes', p ? p.name : 'Ficha del paciente'],
+    patients: ['Entrenados', p ? p.name : 'Ficha del entrenado'],
     evaluation: ['Evaluación', 'Re-evaluación funcional'],
     planning: ['Planificación', `Editor de plan${p ? ' · ' + p.name : ''}`],
     progress: ['Progreso', `Evolución${p ? ' · ' + p.name : ''}`],
@@ -38,6 +38,7 @@ function App() {
   const [route, setRoute] = useStateApp('dashboard');
   const [activePatient, setActivePatient] = useStateApp('p1');
   const [search, setSearch] = useStateApp('');
+  const [exerciseLibrary, setExerciseLibrary] = useStateApp([...EXERCISE_LIBRARY]);
 
   // when role changes, jump to a sensible default route
   React.useEffect(() => {
@@ -60,12 +61,12 @@ function App() {
           {role === 'pro' && route === 'dashboard' && <ScreenDashboard setRoute={setRoute} setActivePatient={setActivePatient} />}
           {role === 'pro' && route === 'patients' && <ScreenPatient activePatient={activePatient} setActivePatient={setActivePatient} setRoute={setRoute} />}
           {role === 'pro' && route === 'evaluation' && <ScreenEvaluation activePatient={activePatient} setRoute={setRoute} />}
-          {role === 'pro' && route === 'planning' && <ScreenPlanning activePatient={activePatient} setRoute={setRoute} />}
+          {role === 'pro' && route === 'planning' && <ScreenPlanning activePatient={activePatient} setRoute={setRoute} exerciseLibrary={exerciseLibrary} setExerciseLibrary={setExerciseLibrary} />}
           {role === 'pro' && route === 'progress' && <ScreenProgress activePatient={activePatient} />}
-          {role === 'pro' && route === 'library' && <ScreenLibrary />}
+          {role === 'pro' && route === 'library' && <ScreenLibrary exerciseLibrary={exerciseLibrary} setExerciseLibrary={setExerciseLibrary} />}
           {role === 'pro' && route === 'chat' && <ScreenChat activePatient={activePatient} />}
-          {role === 'patient' && route === 'portal-home' && <ScreenPortalHome />}
-          {role === 'patient' && route === 'portal-plan' && <ScreenPortalPlan />}
+          {role === 'patient' && route === 'portal-home' && <ScreenPortalHome exerciseLibrary={exerciseLibrary} />}
+          {role === 'patient' && route === 'portal-plan' && <ScreenPortalPlan exerciseLibrary={exerciseLibrary} />}
           {role === 'patient' && route === 'portal-progress' && <ScreenPortalProgress />}
           {role === 'patient' && route === 'portal-chat' && <ScreenPortalChat />}
         </div>

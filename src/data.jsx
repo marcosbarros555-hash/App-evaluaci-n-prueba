@@ -81,18 +81,18 @@ const TODAY_AGENDA = [
 ];
 
 const EXERCISE_LIBRARY = [
-  { id: 'e1',  name: 'Sentadilla búlgara',              muscle: 'Cuádriceps · Glúteo',    equipment: 'Mancuernas',   diff: 'Intermedio', tags: ['fuerza','unilateral','MMII'] },
-  { id: 'e2',  name: 'Puente de glúteo unipodal',       muscle: 'Glúteo medio',            equipment: 'Sin equipo',   diff: 'Básico',     tags: ['activación','glúteo','MMII'] },
-  { id: 'e3',  name: 'Plancha con elevación',           muscle: 'Core',                    equipment: 'Sin equipo',   diff: 'Intermedio', tags: ['core','estabilidad'] },
-  { id: 'e4',  name: 'Step-up lateral',                 muscle: 'Glúteo · Cuádriceps',     equipment: 'Cajón',        diff: 'Intermedio', tags: ['funcional','MMII'] },
-  { id: 'e5',  name: 'Movilidad cadera 90/90',          muscle: 'Cadera',                  equipment: 'Sin equipo',   diff: 'Básico',     tags: ['movilidad','cadera'] },
-  { id: 'e6',  name: 'Remo invertido',                  muscle: 'Dorsal · Romboides',      equipment: 'Barra TRX',    diff: 'Intermedio', tags: ['fuerza','MMSS','postural'] },
-  { id: 'e7',  name: 'Salto al cajón',                  muscle: 'Tren inferior',            equipment: 'Cajón',        diff: 'Avanzado',   tags: ['pliometría','potencia'] },
-  { id: 'e8',  name: 'Excéntrico de isquios (Nordic)',  muscle: 'Isquiosurales',           equipment: 'Compañero',    diff: 'Avanzado',   tags: ['fuerza','prevención','MMII'] },
-  { id: 'e9',  name: 'Movilidad torácica gato-camello', muscle: 'Columna',                 equipment: 'Sin equipo',   diff: 'Básico',     tags: ['movilidad','columna'] },
-  { id: 'e10', name: 'Equilibrio unipodal con perturbación', muscle: 'Tobillo · Core',     equipment: 'BOSU',         diff: 'Intermedio', tags: ['propiocepción','tobillo'] },
-  { id: 'e11', name: 'Y-T-W en banco',                  muscle: 'Manguito · Romboides',    equipment: 'Mancuernas',   diff: 'Básico',     tags: ['postural','MMSS'] },
-  { id: 'e12', name: 'Zancada con rotación',            muscle: 'Cadera · Core',           equipment: 'Mancuerna',    diff: 'Intermedio', tags: ['funcional','rotación'] },
+  { id: 'e1',  name: 'Sentadilla búlgara',              muscle: 'Cuádriceps · Glúteo',    equipment: 'Mancuernas',   diff: 'Intermedio', tags: ['fuerza','unilateral','MMII'],        videoId: null },
+  { id: 'e2',  name: 'Puente de glúteo unipodal',       muscle: 'Glúteo medio',            equipment: 'Sin equipo',   diff: 'Básico',     tags: ['activación','glúteo','MMII'],        videoId: null },
+  { id: 'e3',  name: 'Plancha con elevación',           muscle: 'Core',                    equipment: 'Sin equipo',   diff: 'Intermedio', tags: ['core','estabilidad'],                videoId: null },
+  { id: 'e4',  name: 'Step-up lateral',                 muscle: 'Glúteo · Cuádriceps',     equipment: 'Cajón',        diff: 'Intermedio', tags: ['funcional','MMII'],                  videoId: null },
+  { id: 'e5',  name: 'Movilidad cadera 90/90',          muscle: 'Cadera',                  equipment: 'Sin equipo',   diff: 'Básico',     tags: ['movilidad','cadera'],                videoId: null },
+  { id: 'e6',  name: 'Remo invertido',                  muscle: 'Dorsal · Romboides',      equipment: 'Barra TRX',    diff: 'Intermedio', tags: ['fuerza','MMSS','postural'],          videoId: null },
+  { id: 'e7',  name: 'Salto al cajón',                  muscle: 'Tren inferior',            equipment: 'Cajón',        diff: 'Avanzado',   tags: ['pliometría','potencia'],             videoId: null },
+  { id: 'e8',  name: 'Excéntrico de isquios (Nordic)',  muscle: 'Isquiosurales',           equipment: 'Compañero',    diff: 'Avanzado',   tags: ['fuerza','prevención','MMII'],        videoId: null },
+  { id: 'e9',  name: 'Movilidad torácica gato-camello', muscle: 'Columna',                 equipment: 'Sin equipo',   diff: 'Básico',     tags: ['movilidad','columna'],               videoId: null },
+  { id: 'e10', name: 'Equilibrio unipodal con perturbación', muscle: 'Tobillo · Core',     equipment: 'BOSU',         diff: 'Intermedio', tags: ['propiocepción','tobillo'],           videoId: null },
+  { id: 'e11', name: 'Y-T-W en banco',                  muscle: 'Manguito · Romboides',    equipment: 'Mancuernas',   diff: 'Básico',     tags: ['postural','MMSS'],                   videoId: null },
+  { id: 'e12', name: 'Zancada con rotación',            muscle: 'Cadera · Core',           equipment: 'Mancuerna',    diff: 'Intermedio', tags: ['funcional','rotación'],              videoId: null },
 ];
 
 const KFD_BLOCKS = [
@@ -204,7 +204,11 @@ const CHAT_MSGS = [
   { from: 'patient', name: 'Lucía',          time: '12:20', text: 'Genial, gracias!' },
 ];
 
+const KFD_PLAN_SEMANAS = [
+  { semana: 1, dias: KFD_PLAN },
+];
+
 Object.assign(window, {
   STAFF, PATIENTS, TODAY_AGENDA, EXERCISE_LIBRARY,
-  KFD_PLAN, KFD_BLOCKS, TIMELINE, CHAT_MSGS,
+  KFD_PLAN, KFD_BLOCKS, KFD_PLAN_SEMANAS, TIMELINE, CHAT_MSGS,
 });

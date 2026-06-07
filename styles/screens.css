@@ -255,6 +255,7 @@
   background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
   display: flex; flex-direction: column; overflow: hidden;
 }
+.modal--video { max-width: 900px; }
 .modal__head { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid var(--border); }
 .modal__x { font-size: 24px; color: var(--muted); width: 30px; height: 30px; border-radius: 8px; }
 .modal__x:hover { background: var(--chip); color: var(--text); }

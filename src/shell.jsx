@@ -4,7 +4,7 @@ const { useState: useStateShell } = React;
 function SideNav({ route, setRoute, role }) {
   const proItems = [
     { id: 'dashboard', label: 'Dashboard', icon: I.dashboard },
-    { id: 'patients', label: 'Pacientes', icon: I.patients, badge: '6' },
+    { id: 'patients', label: 'Entrenados', icon: I.patients, badge: '6' },
     { id: 'evaluation', label: 'Evaluación', icon: I.evaluation },
     { id: 'planning', label: 'Planificación', icon: I.planning },
     { id: 'progress', label: 'Progreso', icon: I.progress },

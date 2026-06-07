@@ -1,10 +1,11 @@
 // portal.jsx — Patient view (paciente)
 const { useState: useStatePort } = React;
 
-function ScreenPortalHome() {
+function ScreenPortalHome({ exerciseLibrary }) {
   const me = PATIENTS[0]; // Lucía
-  // Find the "en-curso" day (today's session), else first pending
   const todayDay = KFD_PLAN.find(d => d.status === 'en-curso') || KFD_PLAN.find(d => d.status === 'pendiente') || KFD_PLAN[0];
+  const [videoPlaying, setVideoPlaying] = useStatePort(null);
+  const findVideo = (name) => exerciseLibrary?.find(e => e.name === name) || null;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* Hero card */}
@@ -49,18 +50,26 @@ function ScreenPortalHome() {
                     {blockDone && <Pill tone="green">Completado</Pill>}
                   </div>
                   <div className="portal-block__items">
-                    {items.map((ex, i) => (
-                      <div key={i} className="portal-block__item">
-                        <span className="portal-block__check" style={{ background: blockDone ? b.color : 'transparent', borderColor: blockDone ? b.color : 'var(--border-strong)' }}>
-                          {blockDone && I.check}
-                        </span>
-                        <div style={{ flex: 1 }}>
-                          <div className="portal-block__iname">{ex.name}</div>
-                          <div className="portal-block__imeta">{ex.sets} · {ex.dur}'{ex.load ? ` · ${ex.load}` : ''}</div>
+                    {items.map((ex, i) => {
+                      const libEx = findVideo(ex.name);
+                      return (
+                        <div key={i} className="portal-block__item">
+                          <span className="portal-block__check" style={{ background: blockDone ? b.color : 'transparent', borderColor: blockDone ? b.color : 'var(--border-strong)' }}>
+                            {blockDone && I.check}
+                          </span>
+                          <div style={{ flex: 1 }}>
+                            <div className="portal-block__iname">{ex.name}</div>
+                            <div className="portal-block__imeta">{ex.sets} · {ex.dur}'{ex.load ? ` · ${ex.load}` : ''}</div>
+                          </div>
+                          <button
+                            className="portal-block__playbtn"
+                            onClick={() => libEx?.videoId && setVideoPlaying(libEx)}
+                            style={{ opacity: libEx?.videoId ? 1 : 0.3, cursor: libEx?.videoId ? 'pointer' : 'default' }}
+                            title={libEx?.videoId ? 'Ver video' : 'Sin video asignado'}
+                          >{I.play}</button>
                         </div>
-                        <button className="portal-block__playbtn">{I.play}</button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -92,6 +101,10 @@ function ScreenPortalHome() {
           <SessionChecklist />
         </Card>
       </div>
+
+      {videoPlaying && (
+        <VideoModal videoId={videoPlaying.videoId} title={videoPlaying.name} onClose={() => setVideoPlaying(null)} />
+      )}
     </div>
   );
 }
