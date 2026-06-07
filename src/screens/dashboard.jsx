@@ -1,7 +1,7 @@
 // dashboard.jsx — Professional dashboard
-function ScreenDashboard({ setRoute, setActivePatient }) {
-  const active = PATIENTS.filter(p => p.status === 'En tratamiento' || p.status === 'Evaluación pendiente').length;
-  const total = PATIENTS.length;
+function ScreenDashboard({ patients, setRoute, setActivePatient }) {
+  const active = patients.filter(p => p.status === 'En tratamiento' || p.status === 'Evaluación pendiente' || p.status === 'Activo').length;
+  const total = patients.length;
   const todayCount = TODAY_AGENDA.filter(a => a.status !== 'break').length;
   const doneCount = TODAY_AGENDA.filter(a => a.status === 'completada').length;
 
@@ -30,33 +30,29 @@ function ScreenDashboard({ setRoute, setActivePatient }) {
 
       {/* Active patients (left) */}
       <Card style={{ gridColumn: 'span 8' }}>
-        <SectionHead title="Pacientes activos" sub="Tu cohorte de esta semana — ordenados por próxima sesión"
+        <SectionHead title="Entrenados de KFD" sub={`${total} entrenados · primeros 20 alfabético`}
           action={<div style={{ display: 'flex', gap: 8 }}>
             <Btn variant="ghost" size="sm" leadIcon={I.filter}>Filtrar</Btn>
             <Btn variant="primary" size="sm" leadIcon={I.plus} onClick={() => setRoute('patients')}>Nuevo</Btn>
           </div>} />
         <div className="patient-list">
-          {PATIENTS.map(p => (
+          {patients.slice(0, 20).map(p => (
             <button key={p.id} className="patient-row" onClick={() => { setActivePatient(p.id); setRoute('patients'); }}>
               <Avatar name={p.name} color={p.color} size={42} />
               <div className="patient-row__main">
                 <div className="patient-row__name">
-                  {p.name}
+                  <span style={{ fontWeight: 700 }}>{p.apellido || ''}</span>
+                  {p.apellido && p.nombre ? ', ' : ''}
+                  {p.nombre || p.name}
                   {p.flags.includes('alta-prioridad') && <Pill tone="red">Prioridad</Pill>}
                   {p.flags.includes('nuevo') && <Pill tone="lime">Nuevo</Pill>}
                   {p.flags.includes('adherencia-baja') && <Pill tone="amber">Adherencia baja</Pill>}
                 </div>
-                <div className="patient-row__sub">{p.diagnosis} · <span style={{ color: 'var(--muted)' }}>{p.sport} · {p.age}a</span></div>
-              </div>
-              <div className="patient-row__col">
-                <div className="patient-row__klabel">Progreso</div>
-                <Sparkline data={p.progress.length ? p.progress : [0,0]} width={90} height={28} color={p.color} />
-              </div>
-              <div className="patient-row__col">
-                <div className="patient-row__klabel">Adherencia</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Bar value={p.adherence} height={5} color={p.color} />
-                  <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{p.adherence}%</span>
+                <div className="patient-row__sub">
+                  {p.diagnosis && <>{p.diagnosis} · </>}
+                  <span style={{ color: 'var(--muted)' }}>
+                    {[p.sport, p.age ? `${p.age}a` : null].filter(Boolean).join(' · ')}
+                  </span>
                 </div>
               </div>
               <div className="patient-row__col">

@@ -194,7 +194,10 @@ Escala 0–3. `0 = dolor → detener protocolo`.
 - Shell completo: SideNav, TopBar, sistema de temas, responsive (sidebar colapsado tablet, bottomnav mobile)
 - Dashboard, Entrenados (ex-Pacientes), Planificación, Progreso, Biblioteca, Mensajes, Portal del paciente
 - Sistema de diseño completo (tokens, componentes, 3 temas, 3 densidades)
-- Stepper visual de evaluación con header de sesión
+- **Formularios de evaluación** — 5 módulos completos (FMS, Movilidad, Saltos, Hop Tests, Fuerza) con cálculos automáticos (CEA, Índice Q, LSI, H/Q) y semáforo por umbrales según sexo y perfil
+- **Supabase conectado** — `src/supabase.jsx` expone cliente `db` global. Schema completo en `supabase/schema.sql`
+- **1659 entrenados importados** — desde Excel "Ingreso KFD". App carga datos reales al inicio
+- Navegación renombrada: "Pacientes" → "Entrenados de KFD"
 
 #### Planificación — funcionalidades completas (sesión 2026-06-06)
 - **Terminología**: "Pacientes" renombrado a "Entrenados" en nav y títulos (`shell.jsx`, `app.jsx`)
@@ -210,36 +213,55 @@ Escala 0–3. `0 = dolor → detener protocolo`.
 ### Pendiente — gaps reales
 | Gap | Descripción |
 |-----|-------------|
-| **Evaluación** | `evaluation.jsx` tiene el stepper pero los formularios de los 5 módulos (A–E) son placeholder. Es el gap más importante. |
-| **Backend** | Todo en `data.jsx` hardcodeado. Decisión tomada: **Supabase**. |
-| **Auth** | El switch pro/paciente es un botón. Falta login real con Supabase Auth + RLS. |
+| **Búsqueda de entrenados** | 1659 registros en DB, se muestran solo 20. Falta campo de búsqueda por nombre/apellido que consulte Supabase en tiempo real. |
+| **Nuevo entrenado** | Botón "+ Nuevo" abre flujo bifurcado: ex-paciente (buscar ficha) vs nuevo (form completo). |
+| **Guardar evaluación** | `evaluation.jsx` tiene todos los cálculos pero NO guarda en Supabase. Falta insertar en `evaluaciones` + 5 sub-tablas al finalizar. |
+| **Auth** | El switch pro/paciente es un botón. Falta Supabase Auth + RLS por profesional. |
+| **Planificación** | Editor conectado a tabla `planificaciones`. Persistencia real (el plan se resetea al recargar). |
 | **Portal conectado** | `portal.jsx` sigue usando `KFD_PLAN` (formato viejo). Falta conectarlo al plan real del editor. |
 | **Series/reps editables** | Los campos `sets` y `dur` en los ejercicios del bloque son texto estático — falta edición inline. |
-| **Persistencia** | El plan se resetea al recargar. Falta Supabase o localStorage. |
+| **Deploy** | Netlify o Vercel. |
 
 ### Orden de construcción acordado
-1. Formularios de evaluación (5 módulos con cálculos y semáforo)
-2. Supabase — tablas + RLS básico
-3. Auth real — reemplazar roleswitch
+1. Búsqueda de entrenados en Supabase (campo de búsqueda en tiempo real)
+2. Guardar evaluación en Supabase (insertar en `evaluaciones` + 5 sub-tablas)
+3. Auth real — reemplazar roleswitch con Supabase Auth + RLS
 4. Planificación conectada a Supabase (persistencia real)
 5. Portal del paciente conectado al plan real
 6. Deploy (Netlify o Vercel)
 
 ---
 
-## Modelo de datos Supabase (planificado)
+## Supabase — conexión
+
+```
+Proyecto:  KFD Entrenamiento
+URL:       https://ljaeadvqexuyqhjadbib.supabase.co
+Key:       src/supabase.jsx (publishable — segura para browser con RLS)
+Cliente:   window.db  (disponible en todos los scripts después de supabase.jsx)
+```
+
+### Tablas creadas
 
 ```sql
-usuarios          -- kinesiólogos y entrenados, rol
-entrenados        -- datos del entrenado/paciente
-evaluaciones      -- cabecera: fecha, N° eval, config DJ y hop
-ev_control_motor  -- FMS: puntajes D/I y observaciones
-ev_movilidad      -- tests pasivos y activos D/I
-ev_saltos_vert    -- SJ, CMJ, Drop Jump con índices calculados
-ev_hop_tests      -- Single/Triple/Medial/Side + LSI
-ev_fuerza         -- Cuáds/Isquios D/I, H/Q, fuerza relativa
-planificaciones   -- objetivos, bloques, semanas
+entrenados         -- 1659 filas importadas del formulario de ingreso
+evaluaciones       -- cabecera de cada sesión eval (sin filas aún)
+ev_control_motor   -- FMS puntajes D/I
+ev_movilidad       -- tests pasivos y activos D/I
+ev_saltos_vert     -- SJ, CMJ, Drop Jump
+ev_hop_tests       -- Single/Triple/Medial/Side + LSI
+ev_fuerza          -- Cuáds/Isquios D/I
+planificaciones    -- pendiente de diseño
 ```
+
+### Políticas RLS actuales
+Todas las tablas tienen `policy "dev_all" FOR ALL USING (true)` — acceso total temporal.
+**Reemplazar por políticas por usuario cuando se implemente Auth.**
+
+### Patrón de carga de datos
+`app.jsx` llama `db.from('entrenados').select('*').order('apellido').limit(50)` al montar.
+Convierte cada fila con `mapEntrenado()` al formato interno de la app.
+Mock `PATIENTS` sigue siendo fallback si Supabase falla.
 
 ---
 

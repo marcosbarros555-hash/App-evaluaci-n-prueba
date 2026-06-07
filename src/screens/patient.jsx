@@ -1,9 +1,11 @@
 // patient.jsx — Patient detail / ficha
 const { useState: useStatePat } = React;
 
-function ScreenPatient({ activePatient, setActivePatient, setRoute }) {
+function ScreenPatient({ patients, activePatient, setActivePatient, setRoute }) {
   const [tab, setTab] = useStatePat('resumen');
-  const p = PATIENTS.find(x => x.id === activePatient) || PATIENTS[0];
+  const allPats = patients || PATIENTS;
+  const p = allPats.find(x => x.id === activePatient) || allPats[0];
+  if (!p) return <Card><div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>Cargando entrenado…</div></Card>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -15,7 +17,9 @@ function ScreenPatient({ activePatient, setActivePatient, setRoute }) {
             <Avatar name={p.name} color={p.color} size={84} ring />
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
-                <h2 style={{ fontFamily: 'var(--display)', fontSize: 26, margin: 0, color: 'var(--text)', letterSpacing: '-0.01em', lineHeight: 1.15 }}>{p.name}</h2>
+                <h2 style={{ fontFamily: 'var(--display)', fontSize: 26, margin: 0, color: 'var(--text)', letterSpacing: '-0.01em', lineHeight: 1.15 }}>
+                  {p.apellido ? <><span style={{ fontWeight: 900 }}>{p.apellido}</span>{p.nombre ? `, ${p.nombre}` : ''}</> : p.name}
+                </h2>
                 <Pill tone="green">{p.status}</Pill>
                 {p.flags.includes('post-quirurgico') && <Pill tone="amber">Post-quirúrgico</Pill>}
               </div>
@@ -143,43 +147,49 @@ function PatientResumen({ p, setRoute }) {
 }
 
 function PatientHistorial({ p }) {
+  const imc = (p.weight && p.height) ? (p.weight / Math.pow(p.height / 100, 2)).toFixed(1) : null;
+  const fechaNac = p.fecha_nac
+    ? new Date(p.fecha_nac).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
+    : null;
   return (
     <Card>
-      <SectionHead title="Historial clínico" />
+      <SectionHead title="Ficha del entrenado" />
       <div className="grid-2col">
         <div>
           <h4 className="sub-h">Datos personales</h4>
           <dl className="kv">
-            <dt>Edad / sexo</dt><dd>{p.age} años · {p.sex}</dd>
-            <dt>Deporte</dt><dd>{p.sport}</dd>
-            <dt>Mano dominante</dt><dd>Derecha</dd>
-            <dt>Médico derivante</dt><dd>Dr. R. Núñez (Traumatólogo)</dd>
-            <dt>Obra social</dt><dd>Galeno Plan 410</dd>
+            {p.dni      && <><dt>DNI</dt><dd>{p.dni}</dd></>}
+            {fechaNac   && <><dt>Fecha de nac.</dt><dd>{fechaNac}{p.age ? ` (${p.age} años)` : ''}</dd></>}
+            {p.age && !fechaNac && <><dt>Edad</dt><dd>{p.age} años</dd></>}
+            {p.sex      && <><dt>Sexo</dt><dd>{p.sex === 'M' ? 'Masculino' : 'Femenino'}</dd></>}
+            {p.email    && <><dt>E-mail</dt><dd>{p.email}</dd></>}
+            {p.telefono && <><dt>Teléfono</dt><dd>{p.telefono}</dd></>}
+            {p.sport    && <><dt>Deporte / actividad</dt><dd>{p.sport}</dd></>}
+            {p.que_actividad && <><dt>Actividad física</dt><dd>{p.que_actividad}{p.veces_semana ? ` · ${p.veces_semana}×/sem` : ''}</dd></>}
+            {p.como_nos_encontro && <><dt>Cómo nos encontró</dt><dd>{p.como_nos_encontro}</dd></>}
           </dl>
-          <h4 className="sub-h" style={{ marginTop: 22 }}>Antecedentes</h4>
-          <ul className="bullet-list">
-            <li>Esguince tobillo derecho — 2023 (sin secuelas)</li>
-            <li>Cirugía de menisco izquierdo — 2021</li>
-            <li>Sin antecedentes cardiovasculares</li>
-            <li>Sin alergias conocidas</li>
-          </ul>
+          <h4 className="sub-h" style={{ marginTop: 22 }}>Atención</h4>
+          <dl className="kv">
+            {p.modalidad   && <><dt>Modalidad</dt><dd style={{ textTransform: 'capitalize' }}>{p.modalidad.replace('_', ' ')}</dd></>}
+            {p.obra_social && <><dt>Obra social</dt><dd>{p.obra_social}</dd></>}
+            <dt>Perfil</dt><dd>{p.profile === 'deportista' ? 'Deportista' : 'Población general'}</dd>
+          </dl>
         </div>
         <div>
-          <h4 className="sub-h">Diagnóstico actual</h4>
-          <div className="diag-box">
-            <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>{p.diagnosis}</div>
-            <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.6 }}>
-              Paciente presenta dolor en cara lateral de rodilla derecha de 3 semanas de evolución, asociado a aumento de volumen de entrenamiento. Test de Ober positivo. Goniometría con limitación en rotación interna de cadera. Asimetría de fuerza en glúteo medio (24%).
+          {(p.weight || p.height) && <>
+            <h4 className="sub-h">Antropometría</h4>
+            <div className="anthro">
+              {p.weight && <div className="anthro__row"><span>Peso</span><b>{p.weight} kg</b><span className="anthro__delta">—</span></div>}
+              {p.height && <div className="anthro__row"><span>Talla</span><b>{p.height} cm</b><span className="anthro__delta">—</span></div>}
+              {imc      && <div className="anthro__row"><span>IMC</span><b>{imc}</b><span className="anthro__delta anthro__delta--ok">{imc < 18.5 ? 'Bajo' : imc < 25 ? 'Normal' : imc < 30 ? 'Sobrepeso' : 'Obesidad'}</span></div>}
             </div>
-          </div>
-          <h4 className="sub-h" style={{ marginTop: 22 }}>Antropometría</h4>
-          <div className="anthro">
-            <div className="anthro__row"><span>Peso</span><b>58.2 kg</b><span className="anthro__delta">-1.4 kg</span></div>
-            <div className="anthro__row"><span>Talla</span><b>1.65 m</b><span className="anthro__delta">—</span></div>
-            <div className="anthro__row"><span>IMC</span><b>21.4</b><span className="anthro__delta anthro__delta--ok">Normal</span></div>
-            <div className="anthro__row"><span>% Grasa</span><b>22.3 %</b><span className="anthro__delta">-0.8</span></div>
-            <div className="anthro__row"><span>Perím. muslo der.</span><b>53 cm</b><span className="anthro__delta anthro__delta--warn">-1 cm vs izq</span></div>
-          </div>
+          </>}
+          {p.diagnosis && <>
+            <h4 className="sub-h" style={{ marginTop: 22 }}>Diagnóstico</h4>
+            <div className="diag-box">
+              <div style={{ fontFamily: 'var(--display)', fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{p.diagnosis}</div>
+            </div>
+          </>}
         </div>
       </div>
     </Card>
