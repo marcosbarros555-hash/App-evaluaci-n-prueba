@@ -1,9 +1,10 @@
 // progress.jsx + library.jsx + portal.jsx + chat.jsx
-const { useState: useStateMisc } = React;
+const { useState: useStateMisc, useEffect: useEffectMisc } = React;
 
 // ─────────────── PROGRESS SCREEN ───────────────
-function ScreenProgress({ activePatient }) {
-  const p = PATIENTS.find(x => x.id === activePatient) || PATIENTS[0];
+function ScreenProgress({ activePatient, patients }) {
+  const allPats = (patients && patients.length) ? patients : PATIENTS;
+  const p = allPats.find(x => x.id === activePatient) || allPats[0];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <Card style={{ padding: 0, overflow: 'hidden' }}>
@@ -72,7 +73,148 @@ function ScreenProgress({ activePatient }) {
             { lbl: 'S7', v: 92 }, { lbl: 'S8', v: 92 },
           ]} />
         </Card>
+
+        <Card style={{ gridColumn: 'span 12' }}>
+          <SeguimientoMensual entrenadoId={p?.id} entrenadoNombre={p?.name} />
+        </Card>
       </div>
+    </div>
+  );
+}
+
+// ─────────────── SEGUIMIENTO MENSUAL (tabla seguimiento_mensual) ───────────────
+function SeguimientoMensual({ entrenadoId, entrenadoNombre }) {
+  const isRealId = typeof entrenadoId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(entrenadoId);
+  const hoy = () => new Date().toISOString().slice(0, 10);
+  const [items, setItems] = useStateMisc([]);
+  const [loading, setLoading] = useStateMisc(true);
+  const [saving, setSaving] = useStateMisc(false);
+  const [errMsg, setErrMsg] = useStateMisc('');
+  const [form, setForm] = useStateMisc({ fecha: hoy(), peso: '', eva: '', notas: '', foto_url: '' });
+
+  useEffectMisc(() => {
+    if (typeof db === 'undefined' || !isRealId) { setItems([]); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    db.from('seguimiento_mensual').select('*')
+      .eq('entrenado_id', entrenadoId).order('fecha', { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        setItems(!error && data ? data : []);
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [entrenadoId]);
+
+  const guardar = async () => {
+    if (saving) return;
+    if (typeof db === 'undefined' || !isRealId) { setErrMsg('Necesitás un entrenado real de Supabase para guardar.'); return; }
+    setSaving(true);
+    setErrMsg('');
+    const peso = parseFloat(String(form.peso).replace(',', '.'));
+    const eva = parseInt(form.eva);
+    const { data, error } = await db.from('seguimiento_mensual').insert({
+      entrenado_id: entrenadoId,
+      fecha: form.fecha || hoy(),
+      peso: isNaN(peso) ? null : peso,
+      eva: isNaN(eva) ? null : Math.min(10, Math.max(0, eva)),
+      notas: form.notas.trim() || null,
+      foto_url: form.foto_url.trim() || null,
+    }).select().single();
+    setSaving(false);
+    if (error || !data) { setErrMsg(`No se pudo guardar: ${error?.message || 'error desconocido'}`); return; }
+    setItems(prev => [data, ...prev].sort((a, b) => (a.fecha < b.fecha ? 1 : -1)));
+    setForm({ fecha: hoy(), peso: '', eva: '', notas: '', foto_url: '' });
+  };
+
+  const evaTone = v => v == null ? 'neutral' : v <= 2 ? 'green' : v <= 5 ? 'lime' : v <= 7 ? 'amber' : 'red';
+  const fmtFecha = f => f ? new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const lbl = { display: 'block', fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', letterSpacing: '0.06em', marginBottom: 5 };
+  const inp = { width: '100%', boxSizing: 'border-box', background: 'var(--chip)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 8, padding: '8px 10px', fontSize: 13, fontFamily: 'inherit', outline: 'none' };
+
+  return (
+    <div>
+      <SectionHead title="Seguimiento mensual" sub={`Peso, dolor y notas de ${entrenadoNombre || 'el entrenado'} mes a mes`} />
+
+      {/* Formulario */}
+      <div style={{ display: 'grid', gridTemplateColumns: '130px 90px 90px 1fr', gap: 10, alignItems: 'end', marginBottom: 8 }}>
+        <div>
+          <label style={lbl}>Fecha</label>
+          <input type="date" style={inp} value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
+        </div>
+        <div>
+          <label style={lbl}>Peso (kg)</label>
+          <input type="number" step="0.1" min="0" placeholder="—" style={{ ...inp, fontFamily: 'var(--mono)' }}
+            value={form.peso} onChange={e => setForm(f => ({ ...f, peso: e.target.value }))} />
+        </div>
+        <div>
+          <label style={lbl}>Dolor EVA</label>
+          <input type="number" min="0" max="10" placeholder="0–10" style={{ ...inp, fontFamily: 'var(--mono)' }}
+            value={form.eva} onChange={e => setForm(f => ({ ...f, eva: e.target.value }))} />
+        </div>
+        <div>
+          <label style={lbl}>Notas</label>
+          <input placeholder="Cómo viene el mes, molestias, objetivos…" style={inp}
+            value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} />
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end', marginBottom: 16 }}>
+        <div>
+          <label style={lbl}>Foto (URL opcional)</label>
+          <input placeholder="https://…" style={inp}
+            value={form.foto_url} onChange={e => setForm(f => ({ ...f, foto_url: e.target.value }))} />
+        </div>
+        <Btn variant="primary" leadIcon={I.plus} onClick={guardar}>{saving ? 'Guardando…' : 'Guardar registro'}</Btn>
+      </div>
+      {errMsg && <div style={{ fontSize: 12, color: '#FF7A7A', marginBottom: 12 }}>{errMsg}</div>}
+      {!isRealId && (
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+          Este entrenado es de prueba — el seguimiento se habilita con entrenados reales de la base.
+        </div>
+      )}
+
+      {/* Timeline histórica */}
+      {loading ? (
+        <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>Cargando seguimiento…</div>
+      ) : items.length === 0 ? (
+        <div style={{ padding: 20, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+          Sin registros todavía — cargá el primero con el formulario de arriba.
+        </div>
+      ) : (
+        <div className="timeline">
+          {items.map((it, i) => {
+            const prev = items[i + 1]; // registro anterior (lista desc)
+            const deltaPeso = (it.peso != null && prev && prev.peso != null) ? (it.peso - prev.peso) : null;
+            return (
+              <div key={it.id} className="timeline__row">
+                <div className="timeline__rail">
+                  <div className="timeline__dot timeline__dot--eval" />
+                  {i < items.length - 1 && <div className="timeline__line" />}
+                </div>
+                <div className="timeline__body" style={{ paddingBottom: 14 }}>
+                  <div className="timeline__date">{fmtFecha(it.fecha)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', margin: '4px 0' }}>
+                    {it.peso != null && (
+                      <Pill tone="teal">
+                        {it.peso} kg{deltaPeso != null && deltaPeso !== 0 ? ` (${deltaPeso > 0 ? '+' : ''}${deltaPeso.toFixed(1)})` : ''}
+                      </Pill>
+                    )}
+                    {it.eva != null && <Pill tone={evaTone(it.eva)}>EVA {it.eva}/10</Pill>}
+                  </div>
+                  {it.notas && <div className="timeline__detail">{it.notas}</div>}
+                  {it.foto_url && (
+                    <a href={it.foto_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 8 }}>
+                      <img src={it.foto_url} alt="Foto de seguimiento"
+                        style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)' }}
+                        onError={e => { e.target.style.display = 'none'; }} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

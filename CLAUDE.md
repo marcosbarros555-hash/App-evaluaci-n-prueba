@@ -20,9 +20,9 @@ Creado por Fabricio Peano (kinesiólogo, fisioterapeuta, profe de EF).
 
 - **HTML + CSS + React 18 (CDN) + Babel standalone** — sin build step, sin npm
 - Corre con **Live Server** en VS Code o con `Abrir KFD.bat` (doble clic)
-- **Sin backend aún** — datos hardcodeados en `src/data.jsx`
-- **Backend planificado: Supabase** (PostgreSQL, auth nativa, RLS)
-- Archivo de entrada: `KFD App.html`
+- **Backend: Supabase** (PostgreSQL, RLS) — entrenados, biblioteca, planificación y seguimiento leen/escriben en vivo
+- **PWA**: `manifest.json` + `sw.js` (red primero, caché de respaldo) — instalable en el celular
+- Archivo de entrada: `index.html` (ex `KFD App.html`)
 
 > IMPORTANTE: nunca sugerir abrir el HTML directo con doble clic. Siempre Live Server o el `.bat`.
 
@@ -31,7 +31,9 @@ Creado por Fabricio Peano (kinesiólogo, fisioterapeuta, profe de EF).
 ## Estructura de archivos
 
 ```
-KFD App.html              ← entrada, carga estilos y scripts en orden
+index.html                ← entrada, carga estilos y scripts en orden + tags PWA
+manifest.json             ← manifest PWA (nombre KFD, íconos, standalone)
+sw.js                     ← service worker (red primero, caché de respaldo)
 Abrir KFD.bat             ← lanzador con doble clic (npx serve)
 
 styles/
@@ -43,7 +45,7 @@ styles/
   responsive.css          ← tablet (≤1024px) y mobile (≤640px)
 
 src/
-  data.jsx                ← datos mock (PATIENTS, TODAY_AGENDA, EXERCISE_LIBRARY)
+  data.jsx                ← PATIENTS (fallback), TODAY_AGENDA, KFD_BLOCKS, TIMELINE, CHAT_MSGS
   icons.jsx               ← íconos SVG exportados como objeto I.nombre
   ui.jsx                  ← primitivos: Card, Btn, Avatar, Gauge, Pill, SectionHead, etc.
   shell.jsx               ← SideNav + TopBar + RoleSwitcher
@@ -59,6 +61,13 @@ src/
 
 assets/
   kfd-mark.svg
+  icons/                  ← icon-192.png, icon-512.png (PWA)
+
+supabase/
+  schema.sql              ← schema inicial (entrenados + evaluaciones)
+  migrations/001_ingreso_fields.sql
+  migrations/002_planificaciones.sql  ← planes/semanas/dias/bloques/ejercicios_bloque,
+                                         biblioteca_ejercicios (+seeds), seguimiento_mensual
 ```
 
 ---
@@ -210,25 +219,36 @@ Escala 0–3. `0 = dolor → detener protocolo`.
 - **Dosificación semanal**: toggle RPE/RIR, valor por día, barras de color, notas por día
 - **Vista previa del entrenado**: modal read-only que muestra el día como lo vería el paciente (con thumbnails)
 
+#### Conexión Supabase + PWA (sesión 2026-06-10)
+- **Carga completa de entrenados**: los 1659 se traen paginados de a 1000 (PostgREST corta en 1000 filas por request)
+- **Búsqueda en tiempo real**: el buscador del TopBar consulta Supabase (`or` + `ilike` sobre nombre/apellido, debounce 300ms, mín. 2 caracteres); resultados en el Dashboard con estados de carga/vacío
+- **Biblioteca conectada**: lee `biblioteca_ejercicios` al iniciar; `NuevoEjercicioModal` inserta en Supabase (fallback local si falla); los 12 ejercicios mock migraron como seeds de la migración 002
+- **Planificación persistente**: `planning.jsx` carga el plan activo del entrenado (lo crea si no existe: plan → semana 1 → día 1 → 5 bloques KFD) y guarda cada cambio en vivo (semanas, días, bloques, ejercicios, dosificación). Sin conexión funciona local con ids `tmp_*`
+- **Series/reps editables inline**: sets × reps, minutos, carga y notas por ejercicio (persisten onBlur)
+- **Superseries**: botón cadena agrupa ejercicios consecutivos (`superset_id`); visual con borde punteado + pill SS
+- **Seguimiento mensual**: sección en Progreso con form (fecha, peso, EVA, notas, foto URL) → tabla `seguimiento_mensual` + timeline histórica con delta de peso
+- **Mocks eliminados**: `EXERCISE_LIBRARY`, `KFD_PLAN` y `KFD_PLAN_SEMANAS` fuera de `data.jsx`; `PATIENTS` queda solo como fallback; portal y ficha muestran estados vacíos prolijos
+- **PWA**: `manifest.json`, íconos 192/512 (verde KFD + "KFD" negro), meta tags en `index.html`, `sw.js` red-primero con caché de respaldo (offline sirve lo último visto, incluidas respuestas GET de Supabase)
+- **Mobile (≤640px)**: en celular abre directo el portal del entrenado; botones táctiles ≥44px; swipe izquierda sobre un ejercicio del plan revela "Eliminar"; bottom nav con feedback visual al tocar + `navigator.vibrate`
+
+> ⚠ **Migración pendiente de correr**: `supabase/migrations/002_planificaciones.sql` hay que pegarla en Supabase → SQL Editor → Run (la key publishable no permite DDL). Hasta entonces biblioteca/planificación/seguimiento operan en modo local sin persistir.
+
 ### Pendiente — gaps reales
 | Gap | Descripción |
 |-----|-------------|
-| **Búsqueda de entrenados** | 1659 registros en DB, se muestran solo 20. Falta campo de búsqueda por nombre/apellido que consulte Supabase en tiempo real. |
+| **Correr migración 002** | Pegar `supabase/migrations/002_planificaciones.sql` en el SQL Editor. |
 | **Nuevo entrenado** | Botón "+ Nuevo" abre flujo bifurcado: ex-paciente (buscar ficha) vs nuevo (form completo). |
 | **Guardar evaluación** | `evaluation.jsx` tiene todos los cálculos pero NO guarda en Supabase. Falta insertar en `evaluaciones` + 5 sub-tablas al finalizar. |
 | **Auth** | El switch pro/paciente es un botón. Falta Supabase Auth + RLS por profesional. |
-| **Planificación** | Editor conectado a tabla `planificaciones`. Persistencia real (el plan se resetea al recargar). |
-| **Portal conectado** | `portal.jsx` sigue usando `KFD_PLAN` (formato viejo). Falta conectarlo al plan real del editor. |
-| **Series/reps editables** | Los campos `sets` y `dur` en los ejercicios del bloque son texto estático — falta edición inline. |
+| **Portal conectado** | El portal muestra estados vacíos — falta conectarlo al plan real del entrenado logueado (requiere Auth). |
 | **Deploy** | Netlify o Vercel. |
 
 ### Orden de construcción acordado
-1. Búsqueda de entrenados en Supabase (campo de búsqueda en tiempo real)
+1. Correr migración 002 en Supabase (habilita biblioteca/planificación/seguimiento persistentes)
 2. Guardar evaluación en Supabase (insertar en `evaluaciones` + 5 sub-tablas)
 3. Auth real — reemplazar roleswitch con Supabase Auth + RLS
-4. Planificación conectada a Supabase (persistencia real)
-5. Portal del paciente conectado al plan real
-6. Deploy (Netlify o Vercel)
+4. Portal del paciente conectado al plan real
+5. Deploy (Netlify o Vercel)
 
 ---
 
@@ -244,14 +264,23 @@ Cliente:   window.db  (disponible en todos los scripts después de supabase.jsx)
 ### Tablas creadas
 
 ```sql
-entrenados         -- 1659 filas importadas del formulario de ingreso
-evaluaciones       -- cabecera de cada sesión eval (sin filas aún)
-ev_control_motor   -- FMS puntajes D/I
-ev_movilidad       -- tests pasivos y activos D/I
-ev_saltos_vert     -- SJ, CMJ, Drop Jump
-ev_hop_tests       -- Single/Triple/Medial/Side + LSI
-ev_fuerza          -- Cuáds/Isquios D/I
-planificaciones    -- pendiente de diseño
+entrenados            -- 1659 filas importadas del formulario de ingreso
+evaluaciones          -- cabecera de cada sesión eval (sin filas aún)
+ev_control_motor      -- FMS puntajes D/I
+ev_movilidad          -- tests pasivos y activos D/I
+ev_saltos_vert        -- SJ, CMJ, Drop Jump
+ev_hop_tests          -- Single/Triple/Medial/Side + LSI
+ev_fuerza             -- Cuáds/Isquios D/I
+
+-- Migración 002 (⚠ pendiente de correr en el SQL Editor):
+biblioteca_ejercicios -- catálogo con tags[], video_id; 12 seeds
+planes                -- cabecera, uno activo por entrenado
+semanas               -- plan_id, numero, titulo
+dias                  -- semana_id, numero, focus, duracion, status, dose_valor, dose_nota
+bloques               -- dia_id, nombre, color, orden
+ejercicios_bloque     -- bloque_id, ejercicio_id, nombre, sets, reps, duracion,
+                      --   carga, orden, notas, superset_id
+seguimiento_mensual   -- entrenado_id, fecha, peso, eva, notas, foto_url
 ```
 
 ### Políticas RLS actuales
@@ -259,8 +288,10 @@ Todas las tablas tienen `policy "dev_all" FOR ALL USING (true)` — acceso total
 **Reemplazar por políticas por usuario cuando se implemente Auth.**
 
 ### Patrón de carga de datos
-`app.jsx` llama `db.from('entrenados').select('*').order('apellido').limit(50)` al montar.
+`app.jsx` llama `fetchAllEntrenados()` al montar: pagina con `range()` de a 1000
+(PostgREST corta en 1000 filas por request) hasta traer los 1659.
 Convierte cada fila con `mapEntrenado()` al formato interno de la app.
+La biblioteca se carga de `biblioteca_ejercicios` con `mapEjercicio()` (en `ui.jsx`).
 Mock `PATIENTS` sigue siendo fallback si Supabase falla.
 
 ---

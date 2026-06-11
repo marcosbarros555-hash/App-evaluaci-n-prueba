@@ -2,8 +2,18 @@
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>KFD — Evaluación y Planificación</title>
+
+<!-- PWA -->
+<meta name="theme-color" content="#0A0F0B" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="KFD" />
 <link rel="stylesheet" href="styles/base.css" />
 <link rel="stylesheet" href="styles/components.css" />
 <link rel="stylesheet" href="styles/evaluation.css" />
@@ -32,5 +42,14 @@
 <script type="text/babel" src="src/screens/portal.jsx"></script>
 <script type="text/babel" src="src/tweaks-panel.jsx"></script>
 <script type="text/babel" src="src/app.jsx"></script>
+
+<script>
+  // Service worker — funciona en localhost (Live Server) y en HTTPS
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>

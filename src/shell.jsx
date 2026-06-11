@@ -61,7 +61,10 @@ function SideNav({ route, setRoute, role }) {
         {mobileItems.map(it => (
           <button key={it.id}
             className={`bottomnav__item ${route === it.id ? 'is-active' : ''}`}
-            onClick={() => setRoute(it.id)}>
+            onClick={() => {
+              if (navigator.vibrate) navigator.vibrate(10); // haptic real en Android
+              setRoute(it.id);
+            }}>
             <span className="bottomnav__icon">{it.icon}</span>
             <span className="bottomnav__label">{it.label}</span>
             {it.badge && <span className="bottomnav__badge" />}

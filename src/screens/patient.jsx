@@ -217,7 +217,7 @@ function PatientEvaluaciones({ p, setRoute }) {
 function PatientPlan({ p, setRoute }) {
   return (
     <Card>
-      <SectionHead title="Plan activo · Semana 8" sub="Última actualización: hace 3 días"
+      <SectionHead title="Plan activo" sub="El plan se edita desde Planificación"
         action={<Btn variant="primary" size="sm" leadIcon={I.edit} onClick={() => setRoute('planning')}>Editar</Btn>} />
       <PlanWeekMini />
     </Card>
@@ -270,10 +270,19 @@ function PatientArchivos({ p }) {
 }
 
 // Helpers shared
-function PlanWeekMini() {
+// dias: formato del editor de planificación — [{ day, focus, dur, status, blocks: [{ name, color, items: [...] }] }]
+function PlanWeekMini({ dias }) {
+  const list = dias || [];
+  if (list.length === 0) {
+    return (
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+        Sin plan publicado todavía — armalo desde Planificación.
+      </div>
+    );
+  }
   return (
     <div className="plan-mini">
-      {KFD_PLAN.map((day, di) => (
+      {list.map((day, di) => (
         <div key={di} className={`plan-mini__day plan-mini__day--${day.status}`}>
           <div className="plan-mini__head">
             <div>
@@ -283,26 +292,22 @@ function PlanWeekMini() {
             <div className="plan-mini__dur">{day.dur}'</div>
           </div>
           <div className="plan-mini__blocks">
-            {KFD_BLOCKS.map(b => {
-              const items = day.blocks[b.id] || [];
-              if (items.length === 0) return null;
-              return (
-                <div key={b.id} className="plan-mini__block">
-                  <div className="plan-mini__blbl" style={{ color: b.color }}>
-                    <span className="plan-mini__bdot" style={{ background: b.color }} />
-                    {b.name}
-                  </div>
-                  <div className="plan-mini__items">
-                    {items.map((ex, i) => (
-                      <div key={i} className="plan-mini__item">
-                        <span className="plan-mini__iname">{ex.name}</span>
-                        <span className="plan-mini__imeta">{ex.sets}</span>
-                      </div>
-                    ))}
-                  </div>
+            {(day.blocks || []).filter(b => b.items.length > 0).map(b => (
+              <div key={b.id} className="plan-mini__block">
+                <div className="plan-mini__blbl" style={{ color: b.color }}>
+                  <span className="plan-mini__bdot" style={{ background: b.color }} />
+                  {b.name}
                 </div>
-              );
-            })}
+                <div className="plan-mini__items">
+                  {b.items.map((ex, i) => (
+                    <div key={i} className="plan-mini__item">
+                      <span className="plan-mini__iname">{ex.name}</span>
+                      <span className="plan-mini__imeta">{ex.reps ? `${ex.sets}×${ex.reps}` : ex.sets}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       ))}

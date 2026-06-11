@@ -104,7 +104,7 @@ function Btn({ children, variant = 'ghost', size = 'md', leadIcon, trailIcon, on
   };
   const v = variants[variant] || variants.ghost;
   return (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} className={`btn btn--${size}`} style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
       height: s.h, padding: s.pad, fontSize: s.font, borderRadius: s.radius,
       background: v.bg, color: v.color, border: `1px solid ${v.border}`,
@@ -214,6 +214,19 @@ function extractYoutubeId(input) {
   return null;
 }
 
+// ── Mapeo fila biblioteca_ejercicios (Supabase) → formato interno ──
+function mapEjercicio(row) {
+  return {
+    id: row.id,
+    name: row.nombre,
+    muscle: row.musculo || '—',
+    equipment: row.equipamiento || '—',
+    diff: row.dificultad || 'Básico',
+    tags: row.tags || [],
+    videoId: row.video_id || null,
+  };
+}
+
 // ── Reproductor de video en modal ──
 function VideoModal({ videoId, title, onClose }) {
   return (
@@ -249,9 +262,11 @@ function NuevoEjercicioModal({ onClose, onSave }) {
   const urlHasInput = form.videoUrl.trim().length > 0;
   const toggleTag = t => setTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
 
-  const handleSave = () => {
-    if (!form.name.trim()) return;
-    onSave({
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!form.name.trim() || saving) return;
+    const local = {
       id: `e_${Date.now()}`,
       name: form.name.trim(),
       muscle: form.muscle.trim() || '—',
@@ -259,7 +274,23 @@ function NuevoEjercicioModal({ onClose, onSave }) {
       diff: form.diff,
       tags,
       videoId: ytId || null,
-    });
+    };
+    if (typeof db !== 'undefined') {
+      setSaving(true);
+      const { data, error } = await db.from('biblioteca_ejercicios').insert({
+        nombre: local.name,
+        musculo: local.muscle,
+        equipamiento: local.equipment,
+        dificultad: local.diff,
+        tags,
+        video_url: form.videoUrl.trim() || null,
+        video_id: ytId || null,
+      }).select().single();
+      setSaving(false);
+      if (!error && data) { onSave(mapEjercicio(data)); onClose(); return; }
+      console.warn('No se pudo guardar el ejercicio en Supabase:', error?.message);
+    }
+    onSave(local); // fallback local si Supabase falla
     onClose();
   };
 
@@ -341,11 +372,11 @@ function NuevoEjercicioModal({ onClose, onSave }) {
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '14px 22px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
-          <Btn variant="primary" onClick={handleSave} leadIcon={I.check}>Guardar ejercicio</Btn>
+          <Btn variant="primary" onClick={handleSave} leadIcon={I.check}>{saving ? 'Guardando…' : 'Guardar ejercicio'}</Btn>
         </div>
       </div>
     </div>
   );
 }
 
-Object.assign(window, { KfdLogo, KfdWordmark, Avatar, Card, SectionHead, Pill, Btn, Bar, Sparkline, Gauge, Stat, extractYoutubeId, VideoModal, NuevoEjercicioModal });
+Object.assign(window, { KfdLogo, KfdWordmark, Avatar, Card, SectionHead, Pill, Btn, Bar, Sparkline, Gauge, Stat, extractYoutubeId, mapEjercicio, VideoModal, NuevoEjercicioModal });

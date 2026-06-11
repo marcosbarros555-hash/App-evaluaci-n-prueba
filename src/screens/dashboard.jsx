@@ -1,9 +1,17 @@
 // dashboard.jsx — Professional dashboard
-function ScreenDashboard({ patients, setRoute, setActivePatient }) {
+function ScreenDashboard({ patients, setRoute, setActivePatient, search, searchResults, searchLoading, loadingPatients }) {
   const active = patients.filter(p => p.status === 'En tratamiento' || p.status === 'Evaluación pendiente' || p.status === 'Activo').length;
   const total = patients.length;
   const todayCount = TODAY_AGENDA.filter(a => a.status !== 'break').length;
   const doneCount = TODAY_AGENDA.filter(a => a.status === 'completada').length;
+
+  const term = (search || '').trim();
+  const list = searchResults !== null ? searchResults : patients.slice(0, 20);
+  const listSub = searchLoading
+    ? `Buscando "${term}" en ${total} entrenados…`
+    : searchResults !== null
+      ? `${searchResults.length} ${searchResults.length === 1 ? 'resultado' : 'resultados'} para "${term}"`
+      : `${total} entrenados · primeros 20 alfabético`;
 
   return (
     <div className="grid-12" style={{ gap: 18 }}>
@@ -30,13 +38,21 @@ function ScreenDashboard({ patients, setRoute, setActivePatient }) {
 
       {/* Active patients (left) */}
       <Card style={{ gridColumn: 'span 8' }}>
-        <SectionHead title="Entrenados de KFD" sub={`${total} entrenados · primeros 20 alfabético`}
+        <SectionHead title="Entrenados de KFD" sub={listSub}
           action={<div style={{ display: 'flex', gap: 8 }}>
             <Btn variant="ghost" size="sm" leadIcon={I.filter}>Filtrar</Btn>
             <Btn variant="primary" size="sm" leadIcon={I.plus} onClick={() => setRoute('patients')}>Nuevo</Btn>
           </div>} />
         <div className="patient-list">
-          {patients.slice(0, 20).map(p => (
+          {(loadingPatients || searchLoading) ? (
+            <div style={{ padding: 28, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+              {loadingPatients ? 'Cargando entrenados…' : `Buscando "${term}"…`}
+            </div>
+          ) : list.length === 0 ? (
+            <div style={{ padding: 28, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+              Sin resultados para "{term}"
+            </div>
+          ) : list.map(p => (
             <button key={p.id} className="patient-row" onClick={() => { setActivePatient(p.id); setRoute('patients'); }}>
               <Avatar name={p.name} color={p.color} size={42} />
               <div className="patient-row__main">
@@ -145,7 +161,7 @@ function ScreenDashboard({ patients, setRoute, setActivePatient }) {
           <button className="quick" onClick={() => setRoute('library')}>
             <span className="quick__ico" style={{ color: 'var(--lime-2)' }}>{I.library}</span>
             <div className="quick__title">Biblioteca</div>
-            <div className="quick__sub">{EXERCISE_LIBRARY.length} ejercicios</div>
+            <div className="quick__sub">Catálogo de ejercicios KFD</div>
           </button>
           <button className="quick">
             <span className="quick__ico" style={{ color: '#A3E635' }}>{I.download}</span>

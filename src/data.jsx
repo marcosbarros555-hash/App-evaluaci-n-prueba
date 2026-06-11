@@ -80,20 +80,6 @@ const TODAY_AGENDA = [
   { time: '18:00', patient: 'Valentina Pérez', type: 'Eval. inicial', duration: 90, status: 'pendiente' },
 ];
 
-const EXERCISE_LIBRARY = [
-  { id: 'e1',  name: 'Sentadilla búlgara',              muscle: 'Cuádriceps · Glúteo',    equipment: 'Mancuernas',   diff: 'Intermedio', tags: ['fuerza','unilateral','MMII'],        videoId: null },
-  { id: 'e2',  name: 'Puente de glúteo unipodal',       muscle: 'Glúteo medio',            equipment: 'Sin equipo',   diff: 'Básico',     tags: ['activación','glúteo','MMII'],        videoId: null },
-  { id: 'e3',  name: 'Plancha con elevación',           muscle: 'Core',                    equipment: 'Sin equipo',   diff: 'Intermedio', tags: ['core','estabilidad'],                videoId: null },
-  { id: 'e4',  name: 'Step-up lateral',                 muscle: 'Glúteo · Cuádriceps',     equipment: 'Cajón',        diff: 'Intermedio', tags: ['funcional','MMII'],                  videoId: null },
-  { id: 'e5',  name: 'Movilidad cadera 90/90',          muscle: 'Cadera',                  equipment: 'Sin equipo',   diff: 'Básico',     tags: ['movilidad','cadera'],                videoId: null },
-  { id: 'e6',  name: 'Remo invertido',                  muscle: 'Dorsal · Romboides',      equipment: 'Barra TRX',    diff: 'Intermedio', tags: ['fuerza','MMSS','postural'],          videoId: null },
-  { id: 'e7',  name: 'Salto al cajón',                  muscle: 'Tren inferior',            equipment: 'Cajón',        diff: 'Avanzado',   tags: ['pliometría','potencia'],             videoId: null },
-  { id: 'e8',  name: 'Excéntrico de isquios (Nordic)',  muscle: 'Isquiosurales',           equipment: 'Compañero',    diff: 'Avanzado',   tags: ['fuerza','prevención','MMII'],        videoId: null },
-  { id: 'e9',  name: 'Movilidad torácica gato-camello', muscle: 'Columna',                 equipment: 'Sin equipo',   diff: 'Básico',     tags: ['movilidad','columna'],               videoId: null },
-  { id: 'e10', name: 'Equilibrio unipodal con perturbación', muscle: 'Tobillo · Core',     equipment: 'BOSU',         diff: 'Intermedio', tags: ['propiocepción','tobillo'],           videoId: null },
-  { id: 'e11', name: 'Y-T-W en banco',                  muscle: 'Manguito · Romboides',    equipment: 'Mancuernas',   diff: 'Básico',     tags: ['postural','MMSS'],                   videoId: null },
-  { id: 'e12', name: 'Zancada con rotación',            muscle: 'Cadera · Core',           equipment: 'Mancuerna',    diff: 'Intermedio', tags: ['funcional','rotación'],              videoId: null },
-];
 
 const KFD_BLOCKS = [
   { id: 'activacion',    name: 'Activación',           icon: '◐', color: 'var(--teal-2)',
@@ -113,81 +99,6 @@ const KFD_BLOCKS = [
     contents: ['Movilidad suave', 'Respiración', 'Elongación', 'Descarga', 'Recuperación activa'] },
 ];
 
-const KFD_PLAN = [
-  {
-    day: 1, focus: 'Movilidad + Fuerza tren inferior', dur: 55, status: 'completado',
-    blocks: {
-      activacion: [
-        { name: 'Movilidad cadera 90/90', sets: '2×30s/lado', dur: 5 },
-        { name: 'Gato-camello', sets: '2×8', dur: 3 },
-        { name: 'Activación glúteo medio · banda', sets: '2×12/lado', dur: 4 },
-      ],
-      fuerza: [
-        { name: 'Sentadilla búlgara', sets: '4×8/lado', dur: 12, load: 'Mancuerna 8 kg' },
-        { name: 'Puente glúteo unipodal', sets: '3×12/lado', dur: 8 },
-        { name: 'Excéntrico isquios (Nordic)', sets: '3×6', dur: 7, load: '3s bajada' },
-      ],
-      potencia: [{ name: 'Step-up explosivo', sets: '3×6/lado', dur: 6 }],
-      complementario: [{ name: 'Movilidad tobillo en pared', sets: '2×10/lado', dur: 4 }],
-      vuelta: [
-        { name: 'Elongación cadena posterior', sets: '2×30s', dur: 3 },
-        { name: 'Respiración diafragmática', sets: '5 min', dur: 5 },
-      ],
-    },
-  },
-  {
-    day: 2, focus: 'Tren superior + Core', dur: 45, status: 'completado',
-    blocks: {
-      activacion: [
-        { name: 'Movilidad torácica', sets: '2×8', dur: 4 },
-        { name: 'Y-T-W en banco', sets: '2×10', dur: 5 },
-      ],
-      fuerza: [
-        { name: 'Remo invertido TRX', sets: '4×10', dur: 10 },
-        { name: 'Press pike', sets: '3×8', dur: 8 },
-        { name: 'Plancha con elevación', sets: '3×30s', dur: 6 },
-      ],
-      potencia: [{ name: 'Med-ball slam', sets: '3×8', dur: 5, load: '4 kg' }],
-      complementario: [{ name: 'Manguito · rotación externa', sets: '2×12/lado', dur: 4 }],
-      vuelta: [{ name: 'Estiramiento pectoral / dorsal', sets: '2×30s', dur: 3 }],
-    },
-  },
-  {
-    day: 3, focus: 'Funcional + Reactivo', dur: 50, status: 'en-curso',
-    blocks: {
-      activacion: [
-        { name: 'Movilidad dinámica MMII', sets: '8 min', dur: 8 },
-        { name: 'Skipping + drills', sets: '3 series', dur: 6 },
-      ],
-      fuerza: [
-        { name: 'Zancada con rotación', sets: '3×10/lado', dur: 10, load: 'Mancuerna 6 kg' },
-        { name: 'Hip thrust unilateral', sets: '3×10/lado', dur: 8 },
-      ],
-      potencia: [
-        { name: 'Salto al cajón', sets: '4×5', dur: 7, load: 'Cajón 40 cm' },
-        { name: 'Cambios de dirección 5-10-5', sets: '3 series', dur: 6 },
-      ],
-      complementario: [{ name: 'Equilibrio unipodal BOSU', sets: '3×45s/lado', dur: 5 }],
-      vuelta: [{ name: 'Bicicleta Z2 suave', sets: '5 min', dur: 5 }],
-    },
-  },
-  {
-    day: 4, focus: 'Retorno deportivo · trote progresivo', dur: 45, status: 'pendiente',
-    blocks: {
-      activacion: [{ name: 'Movilidad cadera + tobillo', sets: '6 min', dur: 6 }],
-      fuerza: [
-        { name: 'Sentadilla con barra', sets: '4×6', dur: 12, load: 'Barra 35 kg' },
-        { name: 'Excéntrico isquios', sets: '3×6', dur: 6 },
-      ],
-      potencia: [
-        { name: 'Trote progresivo', sets: '4×4 min', dur: 16 },
-        { name: 'Aceleraciones cortas', sets: '6×20 m', dur: 5 },
-      ],
-      complementario: [{ name: 'Propiocepción · cama elástica', sets: '3×30s/lado', dur: 4 }],
-      vuelta: [],
-    },
-  },
-];
 
 const TIMELINE = [
   { date: '20 May', title: 'Sesión #8 completada',      detail: 'Buena progresión. EVA pasó de 5 → 3.',                      type: 'sesion' },
@@ -204,11 +115,7 @@ const CHAT_MSGS = [
   { from: 'patient', name: 'Lucía',          time: '12:20', text: 'Genial, gracias!' },
 ];
 
-const KFD_PLAN_SEMANAS = [
-  { semana: 1, dias: KFD_PLAN },
-];
-
 Object.assign(window, {
-  STAFF, PATIENTS, TODAY_AGENDA, EXERCISE_LIBRARY,
-  KFD_PLAN, KFD_BLOCKS, KFD_PLAN_SEMANAS, TIMELINE, CHAT_MSGS,
+  STAFF, PATIENTS, TODAY_AGENDA,
+  KFD_BLOCKS, TIMELINE, CHAT_MSGS,
 });

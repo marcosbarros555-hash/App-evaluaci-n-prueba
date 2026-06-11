@@ -39,6 +39,7 @@ const I = {
   flag: <Icon d={<><path d="M4 21V4M4 4h12l-2 4 2 4H4"/></>} />,
   user: <Icon d={<><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4-6 8-6s6.5 2 8 6"/></>} />,
   shield: <Icon d={<path d="M12 2 4 5v7c0 5 4 8 8 10 4-2 8-5 8-10V5l-8-3z"/>} />,
+  link: <Icon d={<><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></>} />,
 };
 
 window.I = I;

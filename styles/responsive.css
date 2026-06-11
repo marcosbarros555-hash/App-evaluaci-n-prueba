@@ -364,3 +364,41 @@
   .bodymap { padding: 10px; }
   .legend { font-size: 10.5px; gap: 8px; }
 }
+
+/* ============================================
+   Mobile fino (≤640px, pensado para 390px)
+   Targets táctiles + planificador + bottom nav
+============================================ */
+@media (max-width: 640px) {
+  /* Botones táctiles ≥44px (min-height le gana al height inline de Btn) */
+  .btn { min-height: 44px; }
+  .iconbtn { width: 44px; height: 44px; }
+  .tab { min-height: 44px; }
+  .tag-chip { min-height: 40px; display: inline-flex; align-items: center; }
+  .pain-btn { height: 44px; }
+  .modal__x { width: 44px; height: 44px; }
+
+  /* Planificador usable en celular: bloques apilados, controles a lo ancho */
+  .day-headline { display: none; }
+  .block-head > div:last-child {
+    grid-column: span 2;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .block-head > div:last-child .btn { flex: 1 1 auto; }
+  .block-ex { position: relative; touch-action: pan-y; }
+  .block-ex__meta input { min-height: 34px; }
+  .plan-head > .btn { flex: 1 1 auto; min-width: 120px; }
+
+  /* Bottom nav: feedback "háptico" visual al tocar */
+  .bottomnav__item {
+    transition: transform .12s ease, background .15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bottomnav__item:active {
+    transform: scale(0.88);
+    background: color-mix(in oklab, var(--accent) 16%, transparent);
+  }
+  .bottomnav__item.is-active .bottomnav__icon {
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 55%, transparent));
+  }
+}

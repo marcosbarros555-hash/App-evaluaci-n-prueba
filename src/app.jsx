@@ -30,6 +30,21 @@ function mapEntrenado(e, idx) {
   };
 }
 
+// Trae TODOS los entrenados — PostgREST corta en 1000 filas por request, hay que paginar
+async function fetchAllEntrenados() {
+  const PAGE = 1000;
+  let all = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db.from('entrenados').select('*')
+      .order('apellido', { ascending: true }).order('nombre', { ascending: true }).order('id')
+      .range(from, from + PAGE - 1);
+    if (error || !data) break;
+    all = all.concat(data);
+    if (data.length < PAGE) break;
+  }
+  return all;
+}
+
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "dark",
   "accent": "#4ADE7A",
@@ -63,24 +78,67 @@ function pageMeta(route, role, p) {
 
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [role, setRole] = useStateApp('pro');
-  const [route, setRoute] = useStateApp('dashboard');
+  // En celular la experiencia principal es el portal del entrenado (el switch sigue disponible)
+  const isMobile = window.innerWidth <= 640;
+  const [role, setRole] = useStateApp(isMobile ? 'patient' : 'pro');
+  const [route, setRoute] = useStateApp(isMobile ? 'portal-home' : 'dashboard');
   const [activePatient, setActivePatient] = useStateApp('p1');
   const [search, setSearch] = useStateApp('');
-  const [exerciseLibrary, setExerciseLibrary] = useStateApp([...EXERCISE_LIBRARY]);
+  const [exerciseLibrary, setExerciseLibrary] = useStateApp([]);
   const [patients, setPatients] = useStateApp(PATIENTS);
+  const [loadingPatients, setLoadingPatients] = useStateApp(true);
+  const [searchResults, setSearchResults] = useStateApp(null); // null = sin búsqueda activa
+  const [searchLoading, setSearchLoading] = useStateApp(false);
 
+  // biblioteca de ejercicios desde Supabase
   useEffectApp(() => {
     if (typeof db === 'undefined') return;
-    db.from('entrenados').select('*').order('apellido', { ascending: true }).limit(50)
+    db.from('biblioteca_ejercicios').select('*').order('nombre', { ascending: true })
       .then(({ data, error }) => {
-        if (!error && data && data.length > 0) {
-          const mapped = data.map(mapEntrenado);
-          setPatients(mapped);
-          setActivePatient(mapped[0].id);
-        }
+        if (!error && data && data.length > 0) setExerciseLibrary(data.map(mapEjercicio));
       });
   }, []);
+
+  useEffectApp(() => {
+    if (typeof db === 'undefined') { setLoadingPatients(false); return; }
+    fetchAllEntrenados().then(rows => {
+      if (rows.length > 0) {
+        const mapped = rows.map(mapEntrenado);
+        setPatients(mapped);
+        setActivePatient(mapped[0].id);
+      }
+      setLoadingPatients(false);
+    });
+  }, []);
+
+  // búsqueda en Supabase (ilike sobre nombre/apellido) con debounce
+  useEffectApp(() => {
+    const term = search.trim();
+    if (typeof db === 'undefined' || term.length < 2) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const safe = term.replace(/[%,()]/g, '');
+      db.from('entrenados').select('*')
+        .or(`nombre.ilike.%${safe}%,apellido.ilike.%${safe}%`)
+        .order('apellido', { ascending: true }).limit(100)
+        .then(({ data, error }) => {
+          if (cancelled) return;
+          setSearchResults(!error && data ? data.map(mapEntrenado) : []);
+          setSearchLoading(false);
+        });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [search]);
+
+  const handleSearch = v => {
+    setSearch(v);
+    if (role === 'pro' && v.trim().length >= 2 && route !== 'dashboard') setRoute('dashboard');
+  };
 
   // when role changes, jump to a sensible default route
   React.useEffect(() => {
@@ -98,13 +156,14 @@ function App() {
       <SideNav route={route} setRoute={setRoute} role={role} />
       <main className="main">
         <TopBar role={role} setRole={setRole} route={route} pageTitle={pageTitle} pageSub={pageSub}
-          search={search} onSearch={setSearch} />
+          search={search} onSearch={handleSearch} />
         <div className="content">
-          {role === 'pro' && route === 'dashboard' && <ScreenDashboard patients={patients} setRoute={setRoute} setActivePatient={setActivePatient} />}
+          {role === 'pro' && route === 'dashboard' && <ScreenDashboard patients={patients} setRoute={setRoute} setActivePatient={setActivePatient}
+            search={search} searchResults={searchResults} searchLoading={searchLoading} loadingPatients={loadingPatients} />}
           {role === 'pro' && route === 'patients' && <ScreenPatient patients={patients} activePatient={activePatient} setActivePatient={setActivePatient} setRoute={setRoute} />}
           {role === 'pro' && route === 'evaluation' && <ScreenEvaluation activePatient={activePatient} setRoute={setRoute} />}
-          {role === 'pro' && route === 'planning' && <ScreenPlanning activePatient={activePatient} setRoute={setRoute} exerciseLibrary={exerciseLibrary} setExerciseLibrary={setExerciseLibrary} />}
-          {role === 'pro' && route === 'progress' && <ScreenProgress activePatient={activePatient} />}
+          {role === 'pro' && route === 'planning' && <ScreenPlanning activePatient={activePatient} setRoute={setRoute} exerciseLibrary={exerciseLibrary} setExerciseLibrary={setExerciseLibrary} patients={patients} />}
+          {role === 'pro' && route === 'progress' && <ScreenProgress activePatient={activePatient} patients={patients} />}
           {role === 'pro' && route === 'library' && <ScreenLibrary exerciseLibrary={exerciseLibrary} setExerciseLibrary={setExerciseLibrary} />}
           {role === 'pro' && route === 'chat' && <ScreenChat activePatient={activePatient} />}
           {role === 'patient' && route === 'portal-home' && <ScreenPortalHome exerciseLibrary={exerciseLibrary} />}

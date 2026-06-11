@@ -1,0 +1,16 @@
+{
+  "name": "KFD",
+  "short_name": "KFD",
+  "description": "Evaluación y planificación del entrenamiento — KFD Soluciones con Movimiento",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0A0F0B",
+  "background_color": "#0A0F0B",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

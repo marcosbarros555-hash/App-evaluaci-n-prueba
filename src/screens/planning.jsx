@@ -1,134 +1,399 @@
 // planning.jsx — KFD Planning Methodology
-// Sessions organized by Día 1, 2, 3... · each with 5 blocks
-const { useState: useStatePlan } = React;
+// Sesiones por Día 1, 2, 3… con bloques dinámicos.
+// Persistencia: planes → semanas → dias → bloques → ejercicios_bloque (Supabase)
+const { useState: useStatePlan, useEffect: useEffectPlan, useRef: useRefPlan } = React;
 
 const BLOCK_COLORS = ['var(--teal-2)', 'var(--green-2)', 'var(--lime-2)', '#A3E635', 'var(--teal-1)', '#FFC149'];
 
-function makeDefaultBlocks() {
-  return KFD_BLOCKS.map(b => ({ id: `blk_${b.id}_${Date.now() + Math.random()}`, name: b.name, color: b.color, items: [] }));
+const isUuid = v => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+const realId = v => isUuid(v); // ids tmp_* locales no se persisten
+const newUuid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : `tmp_ss_${Date.now()}_${Math.random()}`;
+const fmtSetsReps = ex => ex.reps ? `${ex.sets || '—'}×${ex.reps}` : (ex.sets || '—');
+
+// ── Mapeos fila Supabase → formato interno ──
+function mapItemRow(r) {
+  return {
+    id: r.id, ejercicioId: r.ejercicio_id || null, name: r.nombre,
+    sets: r.sets || '3', reps: r.reps || '8', dur: r.duracion ?? 5,
+    load: r.carga || '', notas: r.notas || '', orden: r.orden ?? 0,
+    superset: r.superset_id || null,
+  };
+}
+function mapBlockRow(r) {
+  return {
+    id: r.id, name: r.nombre, color: r.color || BLOCK_COLORS[0], orden: r.orden ?? 0,
+    items: (r.ejercicios_bloque || []).map(mapItemRow).sort((a, b) => a.orden - b.orden),
+  };
+}
+function mapDiaRow(r) {
+  return {
+    id: r.id, day: r.numero, focus: r.focus || 'Sesión', dur: r.duracion ?? 45,
+    status: r.status || 'pendiente', doseValue: r.dose_valor ?? null, doseNote: r.dose_nota || '',
+    blocks: (r.bloques || []).map(mapBlockRow).sort((a, b) => a.orden - b.orden),
+  };
+}
+function mapSemanaRow(r) {
+  return {
+    id: r.id, semana: r.numero, titulo: r.titulo || null,
+    dias: (r.dias || []).map(mapDiaRow).sort((a, b) => a.day - b.day),
+  };
 }
 
-function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseLibrary }) {
+// ── Defaults locales (fallback sin Supabase) ──
+function localDefaultDia(numero) {
+  return {
+    id: `tmp_dia_${Date.now()}_${Math.random()}`, day: numero, focus: 'Nueva sesión', dur: 45,
+    status: 'pendiente', doseValue: null, doseNote: '',
+    blocks: KFD_BLOCKS.map((b, i) => ({ id: `tmp_blk_${Date.now()}_${i}`, name: b.name, color: b.color, orden: i, items: [] })),
+  };
+}
+function localDefaultPlan() {
+  return [{ id: null, semana: 1, titulo: null, dias: [localDefaultDia(1)] }];
+}
+
+// ── Inserciones en árbol (devuelven la estructura con ids reales) ──
+async function insertBloqueTree(diaId, orden, src) {
+  const { data: blkRow, error } = await db.from('bloques')
+    .insert({ dia_id: diaId, nombre: src.name, color: src.color, orden }).select('id').single();
+  if (error || !blkRow) return null;
+  let items = [];
+  if (src.items.length) {
+    const { data: itRows } = await db.from('ejercicios_bloque').insert(src.items.map((it, i) => ({
+      bloque_id: blkRow.id,
+      ejercicio_id: isUuid(it.ejercicioId) ? it.ejercicioId : null,
+      nombre: it.name,
+      sets: it.sets || '3', reps: it.reps || '8',
+      duracion: it.dur ?? 5, carga: it.load || null,
+      notas: it.notas || null, orden: i,
+      superset_id: isUuid(it.superset) ? it.superset : null,
+    }))).select('*');
+    items = (itRows || []).map(mapItemRow);
+  }
+  return { id: blkRow.id, name: src.name, color: src.color, orden, items };
+}
+
+async function insertDiaTree(semanaId, numero, src) {
+  const { data: diaRow, error } = await db.from('dias')
+    .insert({ semana_id: semanaId, numero, focus: src.focus, duracion: src.dur, status: 'pendiente' })
+    .select('id').single();
+  if (error || !diaRow) return null;
+  const blocks = [];
+  for (let i = 0; i < src.blocks.length; i++) {
+    const b = await insertBloqueTree(diaRow.id, i, src.blocks[i]);
+    if (b) blocks.push(b);
+  }
+  return { id: diaRow.id, day: numero, focus: src.focus, dur: src.dur, status: 'pendiente', doseValue: null, doseNote: '', blocks };
+}
+
+async function insertSemanaTree(planId, numero, src) {
+  const { data: semRow, error } = await db.from('semanas')
+    .insert({ plan_id: planId, numero, titulo: src.titulo || null }).select('id').single();
+  if (error || !semRow) return null;
+  const dias = [];
+  for (let i = 0; i < src.dias.length; i++) {
+    const d = await insertDiaTree(semRow.id, src.dias[i].day, src.dias[i]);
+    if (d) dias.push(d);
+  }
+  return { id: semRow.id, semana: numero, titulo: src.titulo || null, dias };
+}
+
+async function createDefaultDia(semanaId, numero) {
+  const { data: diaRow, error } = await db.from('dias')
+    .insert({ semana_id: semanaId, numero }).select('id').single();
+  if (error || !diaRow) return null;
+  const { data: blkRows } = await db.from('bloques').insert(
+    KFD_BLOCKS.map((b, i) => ({ dia_id: diaRow.id, nombre: b.name, color: b.color, orden: i }))
+  ).select('*');
+  return { id: diaRow.id, day: numero, focus: 'Nueva sesión', dur: 45, status: 'pendiente', doseValue: null, doseNote: '', blocks: (blkRows || []).map(mapBlockRow) };
+}
+
+// Carga el plan activo del entrenado; si no existe lo crea con Semana 1 → Día 1 → 5 bloques
+async function loadOrCreatePlan(entrenadoId) {
+  let { data: planRow } = await db.from('planes').select('id, titulo')
+    .eq('entrenado_id', entrenadoId).eq('activo', true)
+    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (!planRow) {
+    const { data: created, error } = await db.from('planes')
+      .insert({ entrenado_id: entrenadoId }).select('id, titulo').single();
+    if (error || !created) return null;
+    planRow = created;
+    const { data: semRow } = await db.from('semanas').insert({ plan_id: planRow.id, numero: 1 }).select('id').single();
+    if (semRow) await createDefaultDia(semRow.id, 1);
+  }
+  const { data: semanas, error: e2 } = await db.from('semanas')
+    .select('*, dias(*, bloques(*, ejercicios_bloque(*)))')
+    .eq('plan_id', planRow.id)
+    .order('numero', { ascending: true });
+  if (e2) return null;
+  return { planId: planRow.id, semanas: (semanas || []).map(mapSemanaRow) };
+}
+
+function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseLibrary, patients }) {
   const [activeSemana, setActiveSemana] = useStatePlan(0);
   const [activeDay, setActiveDay] = useStatePlan(0);
   const [picker, setPicker] = useStatePlan(null); // block index (number) or null
   const [editingBlock, setEditingBlock] = useStatePlan(null); // { idx, value } or null
-  const [plan, setPlan] = useStatePlan(() => {
-    let n = 0;
-    return KFD_PLAN_SEMANAS.map(sem => ({
-      ...sem,
-      dias: sem.dias.map(d => ({
-        ...d,
-        blocks: KFD_BLOCKS.map(b => ({ id: `blk_init_${++n}`, name: b.name, color: b.color, items: [...(d.blocks[b.id] || [])] }))
-      }))
-    }));
-  });
+  const [editingFocus, setEditingFocus] = useStatePlan(false);
+  const [planId, setPlanId] = useStatePlan(null);
+  const [plan, setPlan] = useStatePlan([]);
+  const [loadingPlan, setLoadingPlan] = useStatePlan(true);
   const [clipboard, setClipboard] = useStatePlan(null); // { block, fromSemana, fromDay }
   const [toast, setToast] = useStatePlan('');
   const [videoModal, setVideoModal] = useStatePlan(null);
   const [doseSystem, setDoseSystem] = useStatePlan('RIR');
-  const [doses, setDoses] = useStatePlan(() =>
-    KFD_PLAN_SEMANAS.map(sem => sem.dias.map(() => ({ value: null, note: '' })))
-  );
   const [vistaPrevia, setVistaPrevia] = useStatePlan(false);
+  const [swiped, setSwiped] = useStatePlan(null); // { b, i } — fila con swipe abierto (mobile)
+  const touchStart = useRefPlan(null);
 
-  const p = PATIENTS.find(x => x.id === activePatient) || PATIENTS[0];
-  const currentSem = plan[activeSemana];
-  const day = currentSem.dias[activeDay] || currentSem.dias[0];
-  const totalDias = plan.reduce((s, sem) => s + sem.dias.length, 0);
-  const totalEx = plan.reduce((s, sem) => s + sem.dias.reduce((ss, d) => ss + d.blocks.reduce((sss, b) => sss + b.items.length, 0), 0), 0);
-  const totalDur = plan.reduce((s, sem) => s + sem.dias.reduce((ss, d) => ss + d.dur, 0), 0);
-  const canPasteBlock = clipboard && !(clipboard.fromSemana === activeSemana && clipboard.fromDay === activeDay);
+  const allPats = (patients && patients.length) ? patients : PATIENTS;
+  const p = allPats.find(x => x.id === activePatient) || allPats[0];
+
+  // ── carga del plan activo desde Supabase ──
+  useEffectPlan(() => {
+    let cancelled = false;
+    setLoadingPlan(true);
+    (async () => {
+      if (typeof db !== 'undefined' && isUuid(activePatient)) {
+        const res = await loadOrCreatePlan(activePatient).catch(() => null);
+        if (cancelled) return;
+        if (res && res.semanas.length > 0) {
+          setPlanId(res.planId);
+          setPlan(res.semanas);
+          setActiveSemana(0); setActiveDay(0); setLoadingPlan(false);
+          return;
+        }
+      }
+      if (!cancelled) {
+        setPlanId(null);
+        setPlan(localDefaultPlan());
+        setActiveSemana(0); setActiveDay(0); setLoadingPlan(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activePatient]);
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(''), 2500); };
-  const switchSemana = idx => { setActiveSemana(idx); setActiveDay(0); };
+  const dbErr = error => { if (error) { console.warn('Supabase:', error.message || error); showToast('⚠ No se pudo guardar en Supabase'); } };
+  const persist = q => { q.then(({ error }) => dbErr(error)); };
+  const canDb = () => typeof db !== 'undefined';
 
-  // ── bloque helpers ──
+  const currentSem = plan[activeSemana] || plan[0];
+  const day = currentSem ? (currentSem.dias[activeDay] || currentSem.dias[0]) : null;
+
+  // ── helpers de actualización local ──
   const updDay = fn => setPlan(prev => prev.map((sem, si) =>
     si !== activeSemana ? sem : { ...sem, dias: sem.dias.map((d, di) => di !== activeDay ? d : fn(d)) }
   ));
+  const updDayLocal = patch => updDay(d => ({ ...d, ...patch }));
+  const persistDayMeta = patch => {
+    if (!canDb() || !day || !realId(day.id)) return;
+    const m = {};
+    if ('focus' in patch) m.focus = patch.focus;
+    if ('dur' in patch) m.duracion = patch.dur;
+    if ('status' in patch) m.status = patch.status;
+    persist(db.from('dias').update(m).eq('id', day.id));
+  };
 
+  // ── dosificación (persiste en dias.dose_valor / dose_nota) ──
+  const updDoseLocal = (dayIdx, patch) => setPlan(prev => prev.map((sem, si) =>
+    si !== activeSemana ? sem : { ...sem, dias: sem.dias.map((d, di) => di !== dayIdx ? d : { ...d, ...patch }) }
+  ));
+  const persistDose = (dayIdx, patch) => {
+    const t = currentSem.dias[dayIdx];
+    if (!canDb() || !t || !realId(t.id)) return;
+    const m = {};
+    if ('doseValue' in patch) m.dose_valor = patch.doseValue;
+    if ('doseNote' in patch) m.dose_nota = patch.doseNote;
+    persist(db.from('dias').update(m).eq('id', t.id));
+  };
+
+  // ── bloques ──
   const copyBlock = idx => {
     const b = day.blocks[idx];
-    setClipboard({ block: { ...b, items: [...b.items] }, fromSemana: activeSemana, fromDay: activeDay });
+    setClipboard({ block: { ...b, items: b.items.map(it => ({ ...it })) }, fromSemana: activeSemana, fromDay: activeDay });
     showToast(`Bloque "${b.name}" copiado`);
   };
 
-  const pasteBlock = () => {
+  const pasteBlock = async () => {
     if (!clipboard) return;
-    const newB = { ...clipboard.block, id: `blk_paste_${Date.now()}` };
+    let newB = {
+      ...clipboard.block, id: `tmp_blk_${Date.now()}`, orden: day.blocks.length,
+      items: clipboard.block.items.map(it => ({ ...it, id: `tmp_it_${Date.now()}_${Math.random()}` })),
+    };
+    if (canDb() && realId(day.id)) {
+      const inserted = await insertBloqueTree(day.id, day.blocks.length, clipboard.block);
+      if (inserted) newB = inserted;
+    }
     updDay(d => ({ ...d, blocks: [...d.blocks, newB] }));
     showToast(`Bloque "${clipboard.block.name}" pegado`);
   };
 
-  const deleteBlock = idx => updDay(d => ({ ...d, blocks: d.blocks.filter((_, bi) => bi !== idx) }));
-
-  const renameBlock = (idx, name) => updDay(d => ({ ...d, blocks: d.blocks.map((b, bi) => bi !== idx ? b : { ...b, name }) }));
-
-  const setBlockColor = (idx, color) => updDay(d => ({ ...d, blocks: d.blocks.map((b, bi) => bi !== idx ? b : { ...b, color }) }));
-
-  const addBlock = () => {
-    const newB = { id: `blk_new_${Date.now()}`, name: 'Nuevo bloque', color: BLOCK_COLORS[0], items: [] };
-    updDay(d => ({ ...d, blocks: [...d.blocks, newB] }));
+  const deleteBlock = idx => {
+    const blk = day.blocks[idx];
+    updDay(d => ({ ...d, blocks: d.blocks.filter((_, bi) => bi !== idx) }));
+    if (canDb() && realId(blk.id)) persist(db.from('bloques').delete().eq('id', blk.id));
   };
 
-  const addExercise = (blockIdx, ex) => updDay(d => ({
-    ...d, blocks: d.blocks.map((b, bi) =>
-      bi !== blockIdx ? b : { ...b, items: [...b.items, { name: ex.name, sets: '3×8', dur: 5 }] }
-    )
+  const renameBlock = (idx, name) => {
+    const blk = day.blocks[idx];
+    updDay(d => ({ ...d, blocks: d.blocks.map((b, bi) => bi !== idx ? b : { ...b, name }) }));
+    if (canDb() && realId(blk.id)) persist(db.from('bloques').update({ nombre: name }).eq('id', blk.id));
+  };
+
+  const setBlockColor = (idx, color) => {
+    const blk = day.blocks[idx];
+    updDay(d => ({ ...d, blocks: d.blocks.map((b, bi) => bi !== idx ? b : { ...b, color }) }));
+    if (canDb() && realId(blk.id)) persist(db.from('bloques').update({ color }).eq('id', blk.id));
+  };
+
+  const addBlock = async () => {
+    const orden = day.blocks.length;
+    let blk = { id: `tmp_blk_${Date.now()}`, name: 'Nuevo bloque', color: BLOCK_COLORS[0], orden, items: [] };
+    if (canDb() && realId(day.id)) {
+      const { data, error } = await db.from('bloques')
+        .insert({ dia_id: day.id, nombre: blk.name, color: blk.color, orden }).select('*').single();
+      if (!error && data) blk = mapBlockRow(data); else dbErr(error);
+    }
+    updDay(d => ({ ...d, blocks: [...d.blocks, blk] }));
+  };
+
+  // ── ejercicios ──
+  const addExercise = async (blockIdx, ex) => {
+    const block = day.blocks[blockIdx];
+    const orden = block.items.length ? Math.max(...block.items.map(it => it.orden || 0)) + 1 : 0;
+    let item = {
+      id: `tmp_it_${Date.now()}_${Math.random()}`, ejercicioId: isUuid(ex.id) ? ex.id : null,
+      name: ex.name, sets: '3', reps: '8', dur: 5, load: '', notas: '', orden, superset: null,
+    };
+    if (canDb() && realId(block.id)) {
+      const { data, error } = await db.from('ejercicios_bloque').insert({
+        bloque_id: block.id, ejercicio_id: item.ejercicioId, nombre: item.name,
+        sets: item.sets, reps: item.reps, duracion: item.dur, orden,
+      }).select('*').single();
+      if (!error && data) item = mapItemRow(data); else dbErr(error);
+    }
+    updDay(d => ({ ...d, blocks: d.blocks.map((b, bi) => bi !== blockIdx ? b : { ...b, items: [...b.items, item] }) }));
+  };
+
+  const deleteExercise = (blockIdx, i) => {
+    const item = day.blocks[blockIdx].items[i];
+    updDay(d => ({ ...d, blocks: d.blocks.map((b2, bi) => bi !== blockIdx ? b2 : { ...b2, items: b2.items.filter((_, ii) => ii !== i) }) }));
+    if (canDb() && realId(item.id)) persist(db.from('ejercicios_bloque').delete().eq('id', item.id));
+  };
+
+  const updItemLocal = (blockIdx, i, patch) => updDay(d => ({
+    ...d, blocks: d.blocks.map((b, bi) => bi !== blockIdx ? b : {
+      ...b, items: b.items.map((it, ii) => ii !== i ? it : { ...it, ...patch }),
+    }),
   }));
 
-  // ── semana / día helpers ──
-  const updDose = (semIdx, dayIdx, field, val) =>
-    setDoses(prev => prev.map((sem, si) =>
-      si !== semIdx ? sem : sem.map((d, di) => di !== dayIdx ? d : { ...d, [field]: val })
-    ));
-
-  const addSemana = () => {
-    const newIdx = plan.length;
-    setPlan(prev => [...prev, { semana: newIdx + 1, dias: [{ day: 1, focus: 'Nueva sesión', dur: 45, status: 'pendiente', blocks: makeDefaultBlocks() }] }]);
-    setDoses(prev => [...prev, [{ value: null, note: '' }]]);
-    setActiveSemana(newIdx);
-    setActiveDay(0);
+  const persistItem = (blockIdx, i) => {
+    const item = day.blocks[blockIdx] && day.blocks[blockIdx].items[i];
+    if (!canDb() || !item || !realId(item.id)) return;
+    persist(db.from('ejercicios_bloque').update({
+      sets: item.sets, reps: item.reps, duracion: item.dur,
+      carga: item.load || null, notas: item.notas || null,
+    }).eq('id', item.id));
   };
 
-  const copiarSemana = () => {
-    const newIdx = plan.length;
-    setPlan(prev => [...prev, {
-      semana: newIdx + 1,
-      dias: currentSem.dias.map(d => ({
-        ...d, status: 'pendiente',
-        blocks: d.blocks.map(b => ({ ...b, id: `blk_cs_${Date.now() + Math.random()}`, items: [...b.items] }))
-      }))
-    }]);
-    setDoses(prev => [...prev, (doses[activeSemana] || []).map(() => ({ value: null, note: '' }))]);
-    setActiveSemana(newIdx);
-    setActiveDay(0);
-    showToast(`Semana ${currentSem.semana} copiada como Semana ${newIdx + 1}`);
+  // ── superseries: agrupa/separa el ejercicio i con el siguiente ──
+  const toggleSuperset = (blockIdx, i) => {
+    const b = day.blocks[blockIdx];
+    const items = b.items.map(it => ({ ...it }));
+    const a = items[i], nx = items[i + 1];
+    if (!nx) return;
+    const linked = a.superset && a.superset === nx.superset;
+    if (linked) {
+      // separar: el grupo se parte después de i
+      const gid = a.superset;
+      const idxs = items.map((it, k) => it.superset === gid ? k : -1).filter(k => k >= 0);
+      const before = idxs.filter(k => k <= i), after = idxs.filter(k => k > i);
+      const ng = newUuid();
+      if (before.length < 2) before.forEach(k => { items[k].superset = null; });
+      after.forEach(k => { items[k].superset = after.length >= 2 ? ng : null; });
+    } else {
+      // unir (fusiona grupos existentes de ambos lados)
+      const gid = isUuid(a.superset) ? a.superset : (isUuid(nx.superset) ? nx.superset : newUuid());
+      const ga = a.superset, gb = nx.superset;
+      items.forEach(it => { if ((ga && it.superset === ga) || (gb && it.superset === gb)) it.superset = gid; });
+      items[i].superset = gid; items[i + 1].superset = gid;
+    }
+    items.forEach((it, k) => {
+      if (it.superset !== b.items[k].superset && canDb() && realId(it.id)) {
+        persist(db.from('ejercicios_bloque').update({ superset_id: isUuid(it.superset) ? it.superset : null }).eq('id', it.id));
+      }
+    });
+    updDay(d => ({ ...d, blocks: d.blocks.map((bb, bi) => bi !== blockIdx ? bb : { ...bb, items }) }));
   };
 
-  const copiarDia = (dayIdx, e) => {
+  // ── semanas / días ──
+  const switchSemana = idx => { setActiveSemana(idx); setActiveDay(0); };
+
+  const addSemana = async () => {
+    const numero = plan.length + 1;
+    let nueva = null;
+    if (canDb() && planId) {
+      const { data: semRow, error } = await db.from('semanas').insert({ plan_id: planId, numero }).select('id').single();
+      if (!error && semRow) {
+        const dia = await createDefaultDia(semRow.id, 1);
+        nueva = { id: semRow.id, semana: numero, titulo: null, dias: [dia || localDefaultDia(1)] };
+      } else dbErr(error);
+    }
+    if (!nueva) nueva = { id: `tmp_sem_${Date.now()}`, semana: numero, titulo: null, dias: [localDefaultDia(1)] };
+    setPlan(prev => [...prev, nueva]);
+    setActiveSemana(plan.length); setActiveDay(0);
+  };
+
+  const copiarSemana = async () => {
+    const numero = plan.length + 1;
+    const src = currentSem;
+    let nueva = null;
+    if (canDb() && planId && realId(src.id)) nueva = await insertSemanaTree(planId, numero, src);
+    if (!nueva) nueva = {
+      id: `tmp_sem_${Date.now()}`, semana: numero, titulo: src.titulo || null,
+      dias: src.dias.map(d => ({
+        ...d, id: `tmp_dia_${Date.now()}_${Math.random()}`, status: 'pendiente', doseValue: null, doseNote: '',
+        blocks: d.blocks.map(b => ({ ...b, id: `tmp_blk_${Date.now()}_${Math.random()}`, items: b.items.map(it => ({ ...it, id: `tmp_it_${Date.now()}_${Math.random()}` })) })),
+      })),
+    };
+    setPlan(prev => [...prev, nueva]);
+    setActiveSemana(plan.length); setActiveDay(0);
+    showToast(`Semana ${src.semana} copiada como Semana ${numero}`);
+  };
+
+  const copiarDia = async (dayIdx, e) => {
     e.stopPropagation();
     const src = currentSem.dias[dayIdx];
-    const newDayIdx = currentSem.dias.length;
-    const newDay = {
-      ...src, day: newDayIdx + 1, status: 'pendiente',
-      blocks: src.blocks.map(b => ({ ...b, id: `blk_cd_${Date.now() + Math.random()}`, items: [...b.items] }))
+    const newNum = currentSem.dias.length + 1;
+    let newDay = null;
+    if (canDb() && realId(currentSem.id)) newDay = await insertDiaTree(currentSem.id, newNum, src);
+    if (!newDay) newDay = {
+      ...src, id: `tmp_dia_${Date.now()}`, day: newNum, status: 'pendiente', doseValue: null, doseNote: '',
+      blocks: src.blocks.map(b => ({ ...b, id: `tmp_blk_${Date.now()}_${Math.random()}`, items: b.items.map(it => ({ ...it, id: `tmp_it_${Date.now()}_${Math.random()}` })) })),
     };
     setPlan(prev => prev.map((sem, si) => si !== activeSemana ? sem : { ...sem, dias: [...sem.dias, newDay] }));
-    setDoses(prev => prev.map((sem, si) => si !== activeSemana ? sem : [...sem, { value: null, note: '' }]));
-    setActiveDay(newDayIdx);
+    setActiveDay(currentSem.dias.length);
     showToast(`Día ${src.day} copiado`);
   };
 
-  const addDia = () => {
-    const newDayIdx = currentSem.dias.length;
-    setPlan(prev => prev.map((sem, si) =>
-      si !== activeSemana ? sem : { ...sem, dias: [...sem.dias, { day: newDayIdx + 1, focus: 'Nueva sesión', dur: 45, status: 'pendiente', blocks: makeDefaultBlocks() }] }
-    ));
-    setDoses(prev => prev.map((sem, si) => si !== activeSemana ? sem : [...sem, { value: null, note: '' }]));
-    setActiveDay(newDayIdx);
+  const addDia = async () => {
+    const newNum = currentSem.dias.length + 1;
+    let newDay = null;
+    if (canDb() && realId(currentSem.id)) newDay = await createDefaultDia(currentSem.id, newNum);
+    if (!newDay) newDay = localDefaultDia(newNum);
+    setPlan(prev => prev.map((sem, si) => si !== activeSemana ? sem : { ...sem, dias: [...sem.dias, newDay] }));
+    setActiveDay(currentSem.dias.length);
   };
+
+  if (loadingPlan || !currentSem || !day) {
+    return <Card><div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)' }}>Cargando plan…</div></Card>;
+  }
+
+  const totalDias = plan.reduce((s, sem) => s + sem.dias.length, 0);
+  const totalEx = plan.reduce((s, sem) => s + sem.dias.reduce((ss, d) => ss + d.blocks.reduce((sss, b) => sss + b.items.length, 0), 0), 0);
+  const totalDur = plan.reduce((s, sem) => s + sem.dias.reduce((ss, d) => ss + d.dur, 0), 0);
+  const canPasteBlock = clipboard && !(clipboard.fromSemana === activeSemana && clipboard.fromDay === activeDay);
+  const inpMini = { fontFamily: 'var(--mono)', fontSize: 11.5, fontWeight: 700, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', padding: '3px 6px', outline: 'none', boxSizing: 'border-box' };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -137,7 +402,7 @@ function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseL
         <div className="plan-head">
           <Avatar name={p.name} color={p.color} size={48} />
           <div style={{ flex: 1 }}>
-            <div className="plan-head__crumb">Planificación KFD · {plan.length} {plan.length === 1 ? 'semana' : 'semanas'}</div>
+            <div className="plan-head__crumb">Planificación KFD · {plan.length} {plan.length === 1 ? 'semana' : 'semanas'}{planId ? '' : ' · sin conexión'}</div>
             <div className="plan-head__name">{p.name} · {totalDias} sesiones</div>
           </div>
           <div className="plan-stats">
@@ -212,12 +477,26 @@ function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseL
                 <div className="day-headline__num">Día {day.day}</div>
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{day.focus}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>
-                  Duración estimada {day.dur}' · {day.blocks.length} bloques · {day.blocks.reduce((s, b) => s + b.items.length, 0)} ejercicios
+                {editingFocus ? (
+                  <input value={day.focus} autoFocus
+                    onChange={e => updDayLocal({ focus: e.target.value })}
+                    onBlur={() => { persistDayMeta({ focus: day.focus }); setEditingFocus(false); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === 'Escape') e.target.blur(); }}
+                    style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, background: 'transparent', border: 'none', borderBottom: '1px solid var(--accent)', color: 'var(--text)', outline: 'none', width: '100%', padding: '1px 0' }} />
+                ) : (
+                  <div onClick={() => setEditingFocus(true)} title="Click para editar el título"
+                    style={{ fontFamily: 'var(--display)', fontSize: 18, fontWeight: 700, color: 'var(--text)', cursor: 'text' }}>{day.focus}</div>
+                )}
+                <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  Duración estimada
+                  <input type="number" min="5" max="180" value={day.dur}
+                    onChange={e => { const v = parseInt(e.target.value); updDayLocal({ dur: isNaN(v) ? 0 : v }); }}
+                    onBlur={() => persistDayMeta({ dur: day.dur })}
+                    style={{ ...inpMini, width: 52, textAlign: 'center' }} />
+                  min · {day.blocks.length} bloques · {day.blocks.reduce((s, b) => s + b.items.length, 0)} ejercicios
                 </div>
               </div>
-              <Btn variant="ghost" size="sm" leadIcon={I.edit}>Editar título</Btn>
+              <Btn variant="ghost" size="sm" leadIcon={I.edit} onClick={() => setEditingFocus(true)}>Editar título</Btn>
             </div>
           </Card>
 
@@ -271,10 +550,30 @@ function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseL
                   ) : (
                     <div className="block-grid">
                       {b.items.map((ex, i) => {
-                        const libEx = exerciseLibrary.find(e => e.name === ex.name);
+                        const libEx = exerciseLibrary.find(e => e.id === ex.ejercicioId) || exerciseLibrary.find(e => e.name === ex.name);
                         const vid = libEx?.videoId || null;
+                        const linkedWithNext = !!(ex.superset && b.items[i + 1] && b.items[i + 1].superset === ex.superset);
+                        const inSuperset = !!ex.superset && (
+                          (b.items[i + 1] && b.items[i + 1].superset === ex.superset) ||
+                          (b.items[i - 1] && b.items[i - 1].superset === ex.superset)
+                        );
+                        const isSwiped = swiped && swiped.b === idx && swiped.i === i;
                         return (
-                          <div key={i} className="block-ex" style={{ borderLeftColor: b.color }}>
+                          <div key={ex.id || i} className="block-ex"
+                            style={{
+                              borderLeftColor: b.color, position: 'relative',
+                              outline: inSuperset ? '1px dashed var(--accent)' : 'none',
+                              outlineOffset: -1,
+                            }}
+                            onTouchStart={e => { touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+                            onTouchEnd={e => {
+                              if (!touchStart.current) return;
+                              const dx = e.changedTouches[0].clientX - touchStart.current.x;
+                              const dy = Math.abs(e.changedTouches[0].clientY - touchStart.current.y);
+                              if (dx < -50 && dy < 40) setSwiped({ b: idx, i });
+                              else if (dx > 30) setSwiped(null);
+                              touchStart.current = null;
+                            }}>
                             <div className="block-ex__index">{i + 1}</div>
                             <div className="block-ex__thumb"
                               onClick={() => vid && setVideoModal({ videoId: vid, name: ex.name })}
@@ -286,16 +585,54 @@ function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseL
                                 ? <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', borderRadius: 8 }}>{I.play}</div>
                                 : I.play}
                             </div>
-                            <div className="block-ex__main">
-                              <div className="block-ex__name">{ex.name}</div>
-                              <div className="block-ex__meta">
-                                <span><b>{ex.sets}</b></span>
-                                <span>· {ex.dur}'</span>
-                                {ex.load && <span style={{ color: b.color }}>· {ex.load}</span>}
+                            <div className="block-ex__main" style={{ minWidth: 0 }}>
+                              <div className="block-ex__name" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {ex.name}
+                                {inSuperset && <Pill tone="teal" size="sm">SS</Pill>}
+                              </div>
+                              <div className="block-ex__meta" style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', marginTop: 5 }}>
+                                <input value={ex.sets} title="Series" placeholder="3"
+                                  onChange={e => updItemLocal(idx, i, { sets: e.target.value })}
+                                  onBlur={() => persistItem(idx, i)}
+                                  style={{ ...inpMini, width: 34, textAlign: 'center' }} />
+                                <span style={{ color: 'var(--muted)' }}>×</span>
+                                <input value={ex.reps} title="Repeticiones" placeholder="8"
+                                  onChange={e => updItemLocal(idx, i, { reps: e.target.value })}
+                                  onBlur={() => persistItem(idx, i)}
+                                  style={{ ...inpMini, width: 56, textAlign: 'center' }} />
+                                <input type="number" min="0" value={ex.dur} title="Minutos"
+                                  onChange={e => { const v = parseInt(e.target.value); updItemLocal(idx, i, { dur: isNaN(v) ? 0 : v }); }}
+                                  onBlur={() => persistItem(idx, i)}
+                                  style={{ ...inpMini, width: 42, textAlign: 'center' }} />
+                                <span style={{ color: 'var(--muted)' }}>'</span>
+                                <input value={ex.load} title="Carga" placeholder="carga"
+                                  onChange={e => updItemLocal(idx, i, { load: e.target.value })}
+                                  onBlur={() => persistItem(idx, i)}
+                                  style={{ ...inpMini, width: 76, color: b.color }} />
+                                <input value={ex.notas} title="Notas" placeholder="notas…"
+                                  onChange={e => updItemLocal(idx, i, { notas: e.target.value })}
+                                  onBlur={() => persistItem(idx, i)}
+                                  style={{ ...inpMini, flex: 1, minWidth: 80, fontWeight: 500, fontFamily: 'inherit' }} />
                               </div>
                             </div>
-                            <button className="block-ex__btn" title="Editar">{I.edit}</button>
-                            <button className="block-ex__btn block-ex__btn--del" title="Eliminar" onClick={() => updDay(d => ({ ...d, blocks: d.blocks.map((b2, bi) => bi !== idx ? b2 : { ...b2, items: b2.items.filter((_, ii) => ii !== i) }) }))}>{I.trash}</button>
+                            {i < b.items.length - 1 && (
+                              <button className="block-ex__btn" title={linkedWithNext ? 'Quitar superserie con el siguiente' : 'Superserie con el siguiente'}
+                                onClick={() => toggleSuperset(idx, i)}
+                                style={linkedWithNext ? { color: 'var(--accent)', background: 'color-mix(in oklab, var(--accent) 14%, transparent)' } : undefined}>
+                                {I.link}
+                              </button>
+                            )}
+                            <button className="block-ex__btn block-ex__btn--del" title="Eliminar" onClick={() => deleteExercise(idx, i)}>{I.trash}</button>
+                            {isSwiped && (
+                              <button onClick={() => { deleteExercise(idx, i); setSwiped(null); }}
+                                style={{
+                                  position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                                  background: '#FF7A7A', color: '#06140A', fontWeight: 800, fontSize: 12,
+                                  border: 'none', borderRadius: 8, padding: '12px 16px', zIndex: 2, cursor: 'pointer',
+                                }}>
+                                Eliminar
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -350,15 +687,15 @@ function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseL
             />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {currentSem.dias.map((d, i) => {
-                const dose = (doses[activeSemana] || [])[i] || { value: null, note: '' };
+                const doseValue = d.doseValue;
                 let tone = 'neutral', loadPct = 0;
-                if (dose.value !== null) {
+                if (doseValue !== null) {
                   if (doseSystem === 'RIR') {
-                    tone = dose.value <= 1 ? 'red' : dose.value === 2 ? 'amber' : 'green';
-                    loadPct = ((4 - dose.value) / 4) * 100;
+                    tone = doseValue <= 1 ? 'red' : doseValue === 2 ? 'amber' : 'green';
+                    loadPct = ((4 - doseValue) / 4) * 100;
                   } else {
-                    tone = dose.value >= 9 ? 'red' : dose.value >= 6 ? 'amber' : 'green';
-                    loadPct = (dose.value / 10) * 100;
+                    tone = doseValue >= 9 ? 'red' : doseValue >= 6 ? 'amber' : 'green';
+                    loadPct = (doseValue / 10) * 100;
                   }
                 }
                 const loadColor = tone === 'red' ? '#FF7A7A' : tone === 'amber' ? '#FFC149' : tone === 'green' ? 'var(--green-2)' : 'var(--muted)';
@@ -370,34 +707,36 @@ function ScreenPlanning({ activePatient, setRoute, exerciseLibrary, setExerciseL
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em', flexShrink: 0 }}>DÍA {d.day}</span>
                       <span style={{ flex: 1, fontSize: 10.5, color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.focus}</span>
-                      {dose.value !== null && <Pill tone={tone} size="sm">{doseSystem} {dose.value}</Pill>}
+                      {doseValue !== null && <Pill tone={tone} size="sm">{doseSystem} {doseValue}</Pill>}
                     </div>
                     {doseSystem === 'RIR' ? (
                       <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
                         {[0,1,2,3,4].map(v => (
-                          <button key={v} onClick={() => updDose(activeSemana, i, 'value', dose.value === v ? null : v)} style={{
+                          <button key={v} onClick={() => { const nv = doseValue === v ? null : v; updDoseLocal(i, { doseValue: nv }); persistDose(i, { doseValue: nv }); }} style={{
                             flex: 1, height: 24, borderRadius: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-                            background: dose.value === v ? loadColor : 'var(--surface)',
-                            color: dose.value === v ? '#06140A' : 'var(--text-2)',
-                            border: `1px solid ${dose.value === v ? loadColor : 'var(--border)'}`,
+                            background: doseValue === v ? loadColor : 'var(--surface)',
+                            color: doseValue === v ? '#06140A' : 'var(--text-2)',
+                            border: `1px solid ${doseValue === v ? loadColor : 'var(--border)'}`,
                           }}>{v}</button>
                         ))}
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <input type="number" min="1" max="10" value={dose.value ?? ''}
-                          onChange={e => { const v = parseInt(e.target.value); updDose(activeSemana, i, 'value', isNaN(v) ? null : Math.min(10, Math.max(1, v))); }}
+                        <input type="number" min="1" max="10" value={doseValue ?? ''}
+                          onChange={e => { const v = parseInt(e.target.value); const nv = isNaN(v) ? null : Math.min(10, Math.max(1, v)); updDoseLocal(i, { doseValue: nv }); }}
+                          onBlur={() => persistDose(i, { doseValue: currentSem.dias[i].doseValue })}
                           placeholder="—"
-                          style={{ width: 44, textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 15, background: 'var(--surface)', border: `1px solid ${dose.value !== null ? loadColor : 'var(--border)'}`, borderRadius: 6, padding: '3px 6px', color: dose.value !== null ? loadColor : 'var(--muted)', outline: 'none' }} />
+                          style={{ width: 44, textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 15, background: 'var(--surface)', border: `1px solid ${doseValue !== null ? loadColor : 'var(--border)'}`, borderRadius: 6, padding: '3px 6px', color: doseValue !== null ? loadColor : 'var(--muted)', outline: 'none' }} />
                         <span style={{ fontSize: 10, color: 'var(--muted)' }}>/10</span>
                       </div>
                     )}
-                    {dose.value !== null && (
+                    {doseValue !== null && (
                       <div style={{ height: 3, background: 'var(--track)', borderRadius: 999, marginBottom: 6, overflow: 'hidden' }}>
                         <div style={{ width: `${loadPct}%`, height: '100%', background: loadColor, transition: 'width .3s ease' }} />
                       </div>
                     )}
-                    <input value={dose.note} onChange={e => updDose(activeSemana, i, 'note', e.target.value)}
+                    <input value={d.doseNote} onChange={e => updDoseLocal(i, { doseNote: e.target.value })}
+                      onBlur={() => persistDose(i, { doseNote: currentSem.dias[i].doseNote })}
                       placeholder="Nota de intensidad…"
                       style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--text-2)', fontSize: 11, padding: '3px 0', outline: 'none' }} />
                   </div>
@@ -512,6 +851,11 @@ function ExercisePicker({ block, onClose, onAdd, exerciseLibrary, setExerciseLib
           ))}
         </div>
         <div className="modal__body">
+          {list.length === 0 && (
+            <div style={{ padding: 28, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+              {exerciseLibrary.length === 0 ? 'La biblioteca está vacía — creá tu primer ejercicio.' : 'Sin resultados.'}
+            </div>
+          )}
           {list.map(e => (
             <div key={e.id} className="lib-row">
               <div className="lib-row__thumb"
@@ -574,13 +918,18 @@ function VistaPrevia({ sem, day, exerciseLibrary, onClose }) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {b.items.map((ex, i) => {
-                  const libEx = exerciseLibrary.find(e => e.name === ex.name);
+                  const libEx = exerciseLibrary.find(e => e.id === ex.ejercicioId) || exerciseLibrary.find(e => e.name === ex.name);
                   const vid = libEx?.videoId || null;
+                  const inSuperset = !!ex.superset && (
+                    (b.items[i + 1] && b.items[i + 1].superset === ex.superset) ||
+                    (b.items[i - 1] && b.items[i - 1].superset === ex.superset)
+                  );
                   return (
                     <div key={i} style={{
                       display: 'flex', alignItems: 'center', gap: 12,
                       padding: '10px 12px', background: 'var(--chip)', borderRadius: 10,
                       borderLeft: `3px solid ${b.color}`,
+                      outline: inSuperset ? '1px dashed var(--accent)' : 'none', outlineOffset: -1,
                     }}>
                       <div onClick={() => vid && setVidPlay({ videoId: vid, name: ex.name })} style={{
                         width: 76, height: 50, borderRadius: 8, flexShrink: 0, overflow: 'hidden',
@@ -599,11 +948,15 @@ function VistaPrevia({ sem, day, exerciseLibrary, onClose }) {
                         )}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', marginBottom: 4 }}>{ex.name}</div>
-                        <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-2)', alignItems: 'center' }}>
-                          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--text)' }}>{ex.sets}</span>
+                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {ex.name}
+                          {inSuperset && <Pill tone="teal" size="sm">Superserie</Pill>}
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--text)' }}>{fmtSetsReps(ex)}</span>
                           <span>· {ex.dur}'</span>
                           {ex.load && <span style={{ color: b.color, fontWeight: 600 }}>· {ex.load}</span>}
+                          {ex.notas && <span style={{ color: 'var(--muted)' }}>· {ex.notas}</span>}
                         </div>
                       </div>
                       <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--muted)', flexShrink: 0 }}>#{i + 1}</span>

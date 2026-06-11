@@ -3,7 +3,9 @@ const { useState: useStatePort } = React;
 
 function ScreenPortalHome({ exerciseLibrary }) {
   const me = PATIENTS[0]; // Lucía
-  const todayDay = KFD_PLAN.find(d => d.status === 'en-curso') || KFD_PLAN.find(d => d.status === 'pendiente') || KFD_PLAN[0];
+  // El plan real se conecta acá cuando el portal tenga auth (formato del editor: dias con blocks[].items[])
+  const dias = [];
+  const todayDay = dias.find(d => d.status === 'en-curso') || dias.find(d => d.status === 'pendiente') || dias[0] || null;
   const [videoPlaying, setVideoPlaying] = useStatePort(null);
   const findVideo = (name) => exerciseLibrary?.find(e => e.name === name) || null;
   return (
@@ -13,9 +15,9 @@ function ScreenPortalHome({ exerciseLibrary }) {
         <div className="portal-hero">
           <div className="portal-hero__bg" />
           <div className="portal-hero__copy">
-            <div className="portal-hero__hello">Hola, Lucía 👋</div>
-            <div className="portal-hero__title">Vamos por la <span style={{ color: 'var(--accent)' }}>semana 8</span></div>
-            <div className="portal-hero__sub">Sesión hoy 14:30 con Lic. Ferrari · 4 ejercicios para esta tarde.</div>
+            <div className="portal-hero__hello">Hola, {me.nombre || me.name} 👋</div>
+            <div className="portal-hero__title">Tu <span style={{ color: 'var(--accent)' }}>entrenamiento</span> te espera</div>
+            <div className="portal-hero__sub">{todayDay ? `Hoy: ${todayDay.focus} · ${todayDay.dur} minutos.` : 'Cuando tu kine publique el plan, lo vas a ver acá.'}</div>
             <div className="portal-hero__cta">
               <Btn variant="primary" size="lg" leadIcon={I.play}>Empezar entrenamiento</Btn>
               <Btn variant="secondary" size="lg" leadIcon={I.clock}>Reagendar</Btn>
@@ -32,49 +34,59 @@ function ScreenPortalHome({ exerciseLibrary }) {
       <div className="grid-12" style={{ gap: 18 }}>
         {/* Today's session — KFD blocks */}
         <Card style={{ gridColumn: 'span 7' }}>
-          <SectionHead title={`Tu sesión de hoy · Día ${todayDay.day}`} sub={`${todayDay.focus} · ${todayDay.dur}' · 5 bloques`}
-            action={<Btn variant="primary" size="sm" leadIcon={I.play}>Empezar</Btn>} />
-          <div className="portal-blocks">
-            {KFD_BLOCKS.map((b, bi) => {
-              const items = todayDay.blocks[b.id] || [];
-              if (items.length === 0) return null;
-              const blockDone = bi === 0; // first block done for demo
-              return (
-                <div key={b.id} className={`portal-block ${blockDone ? 'is-done' : ''}`}>
-                  <div className="portal-block__head">
-                    <div className="portal-block__num" style={{ background: b.color }}>{bi + 1}</div>
-                    <div style={{ flex: 1 }}>
-                      <div className="portal-block__name">{b.name}</div>
-                      <div className="portal-block__meta">{items.length} ej · {items.reduce((s,i)=>s+(i.dur||0),0)} min</div>
-                    </div>
-                    {blockDone && <Pill tone="green">Completado</Pill>}
-                  </div>
-                  <div className="portal-block__items">
-                    {items.map((ex, i) => {
-                      const libEx = findVideo(ex.name);
-                      return (
-                        <div key={i} className="portal-block__item">
-                          <span className="portal-block__check" style={{ background: blockDone ? b.color : 'transparent', borderColor: blockDone ? b.color : 'var(--border-strong)' }}>
-                            {blockDone && I.check}
-                          </span>
-                          <div style={{ flex: 1 }}>
-                            <div className="portal-block__iname">{ex.name}</div>
-                            <div className="portal-block__imeta">{ex.sets} · {ex.dur}'{ex.load ? ` · ${ex.load}` : ''}</div>
-                          </div>
-                          <button
-                            className="portal-block__playbtn"
-                            onClick={() => libEx?.videoId && setVideoPlaying(libEx)}
-                            style={{ opacity: libEx?.videoId ? 1 : 0.3, cursor: libEx?.videoId ? 'pointer' : 'default' }}
-                            title={libEx?.videoId ? 'Ver video' : 'Sin video asignado'}
-                          >{I.play}</button>
+          {todayDay ? (
+            <>
+              <SectionHead title={`Tu sesión de hoy · Día ${todayDay.day}`} sub={`${todayDay.focus} · ${todayDay.dur}' · ${(todayDay.blocks || []).length} bloques`}
+                action={<Btn variant="primary" size="sm" leadIcon={I.play}>Empezar</Btn>} />
+              <div className="portal-blocks">
+                {(todayDay.blocks || []).filter(b => b.items.length > 0).map((b, bi) => {
+                  const items = b.items;
+                  const blockDone = false;
+                  return (
+                    <div key={b.id} className={`portal-block ${blockDone ? 'is-done' : ''}`}>
+                      <div className="portal-block__head">
+                        <div className="portal-block__num" style={{ background: b.color }}>{bi + 1}</div>
+                        <div style={{ flex: 1 }}>
+                          <div className="portal-block__name">{b.name}</div>
+                          <div className="portal-block__meta">{items.length} ej · {items.reduce((s,i)=>s+(i.dur||0),0)} min</div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                        {blockDone && <Pill tone="green">Completado</Pill>}
+                      </div>
+                      <div className="portal-block__items">
+                        {items.map((ex, i) => {
+                          const libEx = findVideo(ex.name);
+                          return (
+                            <div key={i} className="portal-block__item">
+                              <span className="portal-block__check" style={{ background: blockDone ? b.color : 'transparent', borderColor: blockDone ? b.color : 'var(--border-strong)' }}>
+                                {blockDone && I.check}
+                              </span>
+                              <div style={{ flex: 1 }}>
+                                <div className="portal-block__iname">{ex.name}</div>
+                                <div className="portal-block__imeta">{ex.reps ? `${ex.sets}×${ex.reps}` : ex.sets} · {ex.dur}'{ex.load ? ` · ${ex.load}` : ''}</div>
+                              </div>
+                              <button
+                                className="portal-block__playbtn"
+                                onClick={() => libEx?.videoId && setVideoPlaying(libEx)}
+                                style={{ opacity: libEx?.videoId ? 1 : 0.3, cursor: libEx?.videoId ? 'pointer' : 'default' }}
+                                title={libEx?.videoId ? 'Ver video' : 'Sin video asignado'}
+                              >{I.play}</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <>
+              <SectionHead title="Tu sesión de hoy" sub="Plan de entrenamiento" />
+              <div style={{ padding: '36px 16px', textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+                Tu kinesiólogo todavía no publicó tu plan.<br />Cuando lo haga, vas a ver tu sesión acá.
+              </div>
+            </>
+          )}
         </Card>
 
         {/* Right column */}
@@ -97,8 +109,8 @@ function ScreenPortalHome({ exerciseLibrary }) {
 
         {/* Sessions checklist */}
         <Card style={{ gridColumn: 'span 12' }}>
-          <SectionHead title="Tu microciclo" sub={`${KFD_PLAN.length} sesiones programadas — ${KFD_PLAN.filter(d => d.status === 'completado').length} completadas`} />
-          <SessionChecklist />
+          <SectionHead title="Tu microciclo" sub={dias.length ? `${dias.length} sesiones programadas — ${dias.filter(d => d.status === 'completado').length} completadas` : 'Sesiones de tu semana'} />
+          <SessionChecklist dias={dias} />
         </Card>
       </div>
 
@@ -139,13 +151,21 @@ function PainScale() {
   );
 }
 
-function SessionChecklist() {
+function SessionChecklist({ dias }) {
+  const list = dias || [];
+  if (list.length === 0) {
+    return (
+      <div style={{ padding: 28, textAlign: 'center', color: 'var(--muted)', fontSize: 13 }}>
+        Sin sesiones programadas todavía.
+      </div>
+    );
+  }
   return (
-    <div className="weekcheck" style={{ gridTemplateColumns: `repeat(${KFD_PLAN.length}, 1fr)` }}>
-      {KFD_PLAN.map((d, i) => {
-        const total = Object.values(d.blocks).flat().length;
+    <div className="weekcheck" style={{ gridTemplateColumns: `repeat(${list.length}, 1fr)` }}>
+      {list.map((d, i) => {
+        const total = (d.blocks || []).reduce((s, b) => s + b.items.length, 0) || 1;
         const done = d.status === 'completado' ? total : d.status === 'en-curso' ? Math.floor(total * 0.25) : 0;
-        const blockCount = KFD_BLOCKS.filter(b => (d.blocks[b.id] || []).length > 0).length;
+        const blockCount = (d.blocks || []).filter(b => b.items.length > 0).length;
         return (
           <div key={i} className={`weekcheck__day ${d.status === 'en-curso' ? 'is-today' : ''}`}>
             <div className="weekcheck__head">
@@ -180,7 +200,7 @@ function ScreenPortalPlan() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <Card>
-        <SectionHead title="Tu plan completo" sub="Semana 8 · 19-25 de mayo · Lic. M. Ferrari"
+        <SectionHead title="Tu plan completo" sub="Plan activo asignado por tu kinesiólogo"
           action={<div style={{ display: 'flex', gap: 8 }}>
             <Btn variant="ghost" size="sm" leadIcon={I.download}>PDF</Btn>
           </div>} />
